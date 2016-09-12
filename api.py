@@ -17,7 +17,7 @@ from cx_Oracle import (
 )
 
 creds = parse_yaml(dir_path + '/creds.yml')
-cred = dict2(creds['INFA_DEV'])
+cred = dict2(creds['INFA_DEV2'])
 
 if cred.type == 'oracle':
   dnsStr = makedsn(cred.host, cred.port, service_name=cred.instance)
