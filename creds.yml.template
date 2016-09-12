@@ -1,0 +1,24 @@
+
+INFA_DEV:
+  type: mssql
+  user: user1
+  password: pass1
+  host: dev.host.com
+  port: 1534
+  instance: INFA_DEV
+
+INFA_QA:
+  type: oracle
+  user: user1
+  password: pass1
+  host: qa.host.com
+  port: 1521
+  instance: INFA_QA
+
+INFA_PRD:
+  type: oracle
+  user: user1
+  password: pass1
+  host: prd.host.com
+  port: 1521
+  instance: INFA_PRD
