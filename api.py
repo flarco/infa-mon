@@ -2,12 +2,10 @@
 import sys, os, re, time, datetime
 
 import sqlalchemy
-from sqlalchemy import (
-  create_engine
-)
 
 from helpers import (
-  dict2,
+  d,
+  d2,
   parse_yaml,
   dir_path
 )
@@ -16,12 +14,13 @@ from cx_Oracle import (
   makedsn,
 )
 
-from sql import(
-  sql_oracle
+from infa_classes import (
+  Infa_Rep
 )
 
+
 creds = parse_yaml(dir_path + '/creds.yml')
-cred = dict2(creds['INFA_DEV2'])
+cred = d2(creds['INFA_DEV2'])
 
 if cred.type == 'oracle':
   dnsStr = makedsn(cred.host, cred.port, service_name=cred.instance)
@@ -32,12 +31,16 @@ elif cred.type == 'mssql':
   conn_str = 'mssql+pymssql://{user}:{password}@{host}:{port}/{instance}'
 
 engine = sqlalchemy.create_engine(conn_str.format(**cred))
-# conn = engine.connect()
 
-fields, sql = sql_oracle.list_mapping
+Repo = Infa_Rep(engine)
+Repo.get_list_folders()
 
+folder = Repo.folders['ARIBA']
+folder.get_list_sources()
+folder.get_list_targets()
+folder.get_list_mappings()
+folder.get_list_sessions()
+folder.get_list_workflows()
+folder.generate_workflow_report_1()
 
-# result = engine.execute("select count(1) from INF_RP.OPB_MAPPING")
-result = engine.execute(sql.format(folder_id=108))
-data = [r for r in result]
-print(str(len(data)))
+pass

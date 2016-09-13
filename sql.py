@@ -11,10 +11,13 @@ sql_template = dict(
   list_instance=None,  # get list of unique instances in each mapping
   list_mapping=None,  # get list of unique mappings
   list_mapplet=None,  # get list of unique mapplets
+  list_workflow=None,  # get list of unique workflows
+  list_workflow_sessions=None,  # get list of unique workflows-sessions
   list_session=None,  # get list of unique sessions
   list_session_conns=None,  # get list of session connections
   list_source_fields=None, # get list of fields for a source
   list_target_fields=None, # get list of fields for a target
+  list_folder=None, # get list of folders
 )
 
 sql_oracle = dict2(
@@ -58,7 +61,7 @@ FROM
   "INF_RP"."OPB_TASK_INST_RUN"
 WHERE 1=1
   AND WORKFLOW_RUN_ID <> 2053353892 -- some weird future-dated entry
-  AND WORKFLOW_ID = {workflow_id}
+  AND WORKFLOW_ID = :workflow_id
   AND TASK_NAME <> 'Start'
 ORDER BY WORKFLOW_RUN_ID desc
 '''),
@@ -89,7 +92,7 @@ SELECT
 FROM
   "INF_DD"."ISP_RUN_LOG"
 WHERE 1=1
-AND ROWNUM <= {limit}
+AND ROWNUM <= :limit
 ORDER BY ENTRYTIME desc
 '''),
 
@@ -121,7 +124,7 @@ SELECT
 FROM
   "INF_RP"."REP_SESS_WIDGET_CNXS"
 WHERE 1=1
-AND SESSION_ID = {session_id}
+AND SESSION_ID = :session_id
 '''),
 
 log_workflow_run = (
@@ -165,8 +168,8 @@ FROM
   "INF_RP"."OPB_WFLOW_RUN"
 WHERE 1=1
   AND WORKFLOW_RUN_ID <> 2053353892 -- some weird future-dated entry
-  AND SUBJECT_ID = {folder_id}
-  AND ROWNUM <= {limit}
+  AND SUBJECT_ID = :folder_id
+  AND ROWNUM <= :limit
 ORDER BY WORKFLOW_RUN_ID desc
 '''),
 
@@ -205,7 +208,7 @@ SELECT
 FROM
   "INF_RP"."REP_ALL_MAPPINGS"
 WHERE 1=1
-AND SUBJECT_ID = {folder_id}
+AND SUBJECT_ID = :folder_id
 '''),
 
 list_mapplet=(
@@ -244,7 +247,7 @@ SELECT
 FROM
   "INF_RP"."REP_ALL_MAPPLETS"
 WHERE 1=1
-AND SUBJECT_ID = {folder_id}
+AND SUBJECT_ID = :folder_id
 '''),
 
 list_workflow=(
@@ -282,7 +285,7 @@ SELECT
 FROM
   "INF_RP"."REP_WORKFLOWS"
 WHERE 1=1
-AND SUBJECT_ID = {folder_id}
+AND SUBJECT_ID = :folder_id
 '''),
 
 list_source=(
@@ -316,7 +319,7 @@ SELECT
   "PARENT_SOURCE_DATABASE_TYPE",
   "SUBJECT_AREA",
   "SUBJECT_ID",  -- folder_id
-  "SOURCE_NAME",  -- source_name
+  REP_ALL_SOURCES."SOURCE_NAME",  -- source_name
   "SOURCE_ID",  -- source_id
   "SOURCE_DESCRIPTION",
   "SOURCE_VERSION_NUMBER",
@@ -333,7 +336,7 @@ FROM
   "INF_RP"."REP_ALL_SOURCES", "INF_RP"."OPB_SRC"
 WHERE 1=1
 AND REP_ALL_SOURCES.SOURCE_ID = OPB_SRC.SRC_ID
-AND SUBJECT_ID = {folder_id}
+AND SUBJECT_ID = :folder_id
 '''),
 
 list_source_fields=(
@@ -396,8 +399,8 @@ SELECT
 FROM
   "INF_RP"."REP_ALL_SOURCE_FLDS"
 WHERE 1=1
-AND SUBJECT_ID = {folder_id}
-AND SOURCE_ID = {source_id}
+AND SUBJECT_ID = :folder_id
+AND SOURCE_ID = :source_id
 '''),
 
 list_target_fields=(
@@ -452,8 +455,8 @@ SELECT
 FROM
   "INF_RP"."REP_ALL_TARGET_FLDS"
 WHERE 1=1
-AND SUBJECT_ID = {folder_id}
-AND TARGET_ID = {target_id}
+AND SUBJECT_ID = :folder_id
+AND TARGET_ID = :target_id
 '''),
 
 list_target=(
@@ -498,7 +501,7 @@ SELECT
 FROM
   "INF_RP"."REP_ALL_TARGETS"
 WHERE 1=1
-AND SUBJ_ID = {folder_id}
+AND SUBJECT_ID = :folder_id
 '''),
 
 list_transformation=(
@@ -538,7 +541,7 @@ SELECT
 FROM
   "INF_RP"."OPB_WIDGET"
 WHERE 1=1
-AND SUBJECT_ID = {folder_id}
+AND SUBJECT_ID = :folder_id
 '''),
 
 list_instance=(
@@ -563,7 +566,7 @@ SELECT
 FROM
   "INF_RP"."OPB_WIDGET_INST"
 WHERE 1=1
-AND MAPPING_ID = {mapping_id}
+AND MAPPING_ID = :mapping_id
 '''),
 
 list_session=(
@@ -593,7 +596,67 @@ FROM
   "INF_RP"."OPB_SESSION"
 WHERE TASK_TYPE = 68
 AND OPB_SESSION.SESSION_ID = REP_ALL_TASKS.TASK_ID
-AND SUBJECT_ID = {folder_id}
+AND SUBJECT_ID = :folder_id
+'''),
+
+list_folder=(
+  dict(
+    folder_name='SUBJ_NAME',
+    folder_id='SUBJ_ID',
+  ),
+'''
+SELECT
+  "SUBJ_NAME",
+  "SUBJ_ID",
+  "INUSE",
+  "SUBJ_CREATOR",
+  "SUBJ_DESC",
+  "SRCTYPE",
+  "IS_SHARED",
+  "OWNER_ID",
+  "GROUP_ID",
+  "PERMISSIONS",
+  "CREATION_TIME",
+  "FOLDER_ATTR",
+  "SUBJ_GID",
+  "CREATE_INFO",
+  "OBJVERSION",
+  "VERSION_STATUS",
+  "OS_USER"
+FROM
+  "INF_RP"."OPB_SUBJECT"
+'''),
+
+list_workflow_sessions=(
+  dict(
+    workflow_id='WORKFLOW_ID',
+    session_id='TASK_ID',
+    folder_id='SUBJECT_ID',
+    sessino_name='INSTANCE_NAME',
+  ),
+'''
+SELECT
+  SUBJECT_ID,
+  OPB_TASK_INST."WORKFLOW_ID",
+  "INSTANCE_ID",
+  "TASK_ID",
+  "TASK_TYPE",
+  "INSTANCE_NAME",
+  "TASK_PROPERTY",
+  "IS_ENABLED",
+  "BIT_OPTIONS",
+  "COMMENTS",
+  "IS_VALID",
+  "OPB_OBJECT_ID",
+  "VERSION_NUMBER",
+  "REF_VERSION_NUMBER",
+  OPB_TASK_INST."SERVER_ID"
+FROM
+  "INF_RP"."REP_WORKFLOWS", "INF_RP"."OPB_TASK_INST"
+WHERE 1=1
+AND REP_WORKFLOWS.WORKFLOW_ID = OPB_TASK_INST.WORKFLOW_ID
+AND TASK_TYPE = 68
+AND SUBJECT_ID = :folder_id
 '''),
 
 )
