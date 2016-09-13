@@ -1,19 +1,77 @@
+from helpers import (
+  dict2,
+)
 
 sql_template = dict(
   log_session_run=None,  # get log of folder-workflow-session ran ordered by most recent
+  log_workflow_run=None,  # get log of folder-workflow ran ordered by most recent
   list_source=None,  # get list of unique sources
   list_target=None,  # get list of unique targets
   list_transformation=None,  # get list of unique transformations
   list_instance=None,  # get list of unique instances in each mapping
   list_mapping=None,  # get list of unique mappings
   list_mapplet=None,  # get list of unique mapplets
-  list_session=None,  # get list of unique mappings
+  list_session=None,  # get list of unique sessions
+  list_session_conns=None,  # get list of session connections
   list_source_fields=None, # get list of fields for a source
-  list_target_fields=None, # get list of fields for a source
+  list_target_fields=None, # get list of fields for a target
 )
 
-sql_oracle = dict(
-log_session_run = ''' -- Also see INF_RP.OPB_WFLOW_RUN
+sql_oracle = dict2(
+
+log_session_run = (
+  dict(
+  folder_id='SUBJECT_ID',
+  workflow_id='WORKFLOW_ID',
+  workflow_run_id='WORKFLOW_RUN_ID',
+  session_id='TASK_ID',
+  session_name='TASK_NAME',
+  start_time='START_TIME',
+  end_time='END_TIME',
+  error_message='RUN_ERR_MSG',
+  ),
+'''
+SELECT
+  "SUBJECT_ID",
+  "WORKFLOW_ID",
+  "WORKFLOW_RUN_ID",
+  "WORKLET_RUN_ID",
+  "CHILD_RUN_ID",
+  "INSTANCE_ID",
+  "INSTANCE_NAME",
+  "TASK_ID",
+  "TASK_TYPE",
+  "START_TIME",
+  "END_TIME",
+  "RUN_ERR_CODE",
+  "RUN_ERR_MSG",
+  "RUN_STATUS_CODE",
+  "TASK_NAME",
+  "RUN_MODE",
+  "VERSION_NUMBER",
+  "SERVER_ID",
+  "SERVER_NAME",
+  "FRAGMENT_ID",
+  "SERVER_NODE_ID",
+  "SERVER_NODE_NAME"
+FROM
+  "INF_RP"."OPB_TASK_INST_RUN"
+WHERE 1=1
+  AND WORKFLOW_RUN_ID <> 2053353892 -- some weird future-dated entry
+  AND WORKFLOW_ID = {workflow_id}
+  AND TASK_NAME <> 'Start'
+ORDER BY WORKFLOW_RUN_ID desc
+'''),
+
+log_session_run2 = (
+  dict(
+  combo1='RUNCONTEXT',
+  starttime='ENTRYTIME',
+  folder_name='FOLDER',
+  workflow_name='FOLDER',
+  session_name='SESSIONPATH',
+  ),
+'''
 SELECT
   "ABSOLUTEFILENAME", -- binary log path
   "NODENAME",
@@ -33,9 +91,92 @@ FROM
 WHERE 1=1
 AND ROWNUM <= {limit}
 ORDER BY ENTRYTIME desc
-''',
+'''),
 
-list_mapping='''
+list_session_conns = (
+  dict(
+  workflow_id='WORKFLOW_ID',
+  session_id='SESSION_ID',
+  transf_id='WIDGET_INSTANCE_ID',
+  instance_name='INSTANCE_NAME',
+  connection_name='CNX_NAME',
+  ),
+'''
+SELECT
+  "WIDGET_INSTANCE_ID", -- transf_id
+  "WIDGET_TYPE",
+  "INSTANCE_NAME", -- instance_name
+  "READER_WRITER_TYPE",
+  "CNX_NAME",  -- connection_name
+  "SESSION_ID",
+  "SESS_WIDG_INST_ID",
+  "SESS_EXTN_OBJECT_TYPE",
+  "SESS_EXTN_OBJECT_SUBTYPE",
+  "SESS_CNX_REFS_OBJECT_TYPE",
+  "SESS_CNX_REFS_OBJECT_SUBTYPE",
+  "SESS_CNX_REFS_OBJECT_ID",
+  "WORKFLOW_ID", -- workflow_id
+  "SESSION_INSTANCE_ID",
+  "SESSION_VERSION_NUMBER"
+FROM
+  "INF_RP"."REP_SESS_WIDGET_CNXS"
+WHERE 1=1
+AND SESSION_ID = {session_id}
+'''),
+
+log_workflow_run = (
+  dict(
+  workflow_id='WORKFLOW_ID',
+  workflow_name='WORKFLOW_NAME',
+  workflow_run_id='WORKFLOW_RUN_ID',
+  folder_id='SUBJECT_ID',
+  start_time='START_TIME',
+  end_time='END_TIME',
+  log_file='LOG_FILE',
+  error_message='RUN_ERR_MSG',
+  ),
+'''
+SELECT
+  "SUBJECT_ID",
+  "WORKFLOW_ID",
+  "WORKFLOW_RUN_ID",
+  "WORKFLOW_NAME",
+  "SERVER_ID",
+  "SERVER_NAME",
+  "START_TIME",
+  "END_TIME",
+  "LOG_FILE",
+  "RUN_ERR_CODE",
+  "RUN_ERR_MSG",
+  "RUN_STATUS_CODE",
+  "USER_NAME",
+  "RUN_TYPE",
+  "CODEPAGE_ID",
+  "VERSION_NUMBER",
+  "SERVER_NET_ID",
+  "SERVER_NET_NAME",
+  "HAS_FAILED_TASKS",
+  "HAS_INTERRUPTS",
+  "SERVER_NODE_ID",
+  "SERVER_NODE_NAME",
+  "OS_USER",
+  "RUNINST_NAME"
+FROM
+  "INF_RP"."OPB_WFLOW_RUN"
+WHERE 1=1
+  AND WORKFLOW_RUN_ID <> 2053353892 -- some weird future-dated entry
+  AND SUBJECT_ID = {folder_id}
+  AND ROWNUM <= {limit}
+ORDER BY WORKFLOW_RUN_ID desc
+'''),
+
+list_mapping=(
+  dict(
+  folder_id='SUBJECT_ID',
+  mapping_name='MAPPING_NAME',
+  mapping_id='MAPPING_ID',
+  ),
+'''
 SELECT
   "PARENT_SUBJECT_AREA",
   "PARENT_SUBJECT_ID",
@@ -65,9 +206,15 @@ FROM
   "INF_RP"."REP_ALL_MAPPINGS"
 WHERE 1=1
 AND SUBJECT_ID = {folder_id}
-''',
+'''),
 
-list_mapplet='''
+list_mapplet=(
+  dict(
+  folder_id='SUBJECT_ID',
+  mapplet_name='MAPPLET_NAME',
+  mapplet_id='MAPPLET_ID',
+  ),
+'''
 SELECT
   "PARENT_SUBJECT_AREA",
   "PARENT_SUBJECT_ID",
@@ -98,9 +245,14 @@ FROM
   "INF_RP"."REP_ALL_MAPPLETS"
 WHERE 1=1
 AND SUBJECT_ID = {folder_id}
-''',
+'''),
 
-list_workflow='''
+list_workflow=(
+  dict(
+  workflow_id='WORKFLOW_ID',
+  workflow_name='WORKFLOW_NAME',
+  folder_id='SUBJECT_ID',
+  ),'''
 SELECT
   "SUBJECT_AREA",
   "WORKFLOW_NAME",
@@ -130,10 +282,17 @@ SELECT
 FROM
   "INF_RP"."REP_WORKFLOWS"
 WHERE 1=1
-AND SUBJECT_ID = {folder_id}  
-'''
+AND SUBJECT_ID = {folder_id}
+'''),
 
-list_source='''
+list_source=(
+  dict(
+  folder_id='SUBJECT_ID',
+  source_name='SOURCE_NAME',
+  source_id='SOURCE_ID',
+  database_name='SOURCE_DATABASE_NAME',
+  ),
+'''
 SELECT
   "PARENT_SUBJECT_AREA",
   "PARENT_SUBJECT_ID",
@@ -157,7 +316,7 @@ SELECT
   "PARENT_SOURCE_DATABASE_TYPE",
   "SUBJECT_AREA",
   "SUBJECT_ID",  -- folder_id
-  "SOURCE_NAME",  -- source name
+  "SOURCE_NAME",  -- source_name
   "SOURCE_ID",  -- source_id
   "SOURCE_DESCRIPTION",
   "SOURCE_VERSION_NUMBER",
@@ -175,9 +334,15 @@ FROM
 WHERE 1=1
 AND REP_ALL_SOURCES.SOURCE_ID = OPB_SRC.SRC_ID
 AND SUBJECT_ID = {folder_id}
-'''
+'''),
 
-list_source_fields='''
+list_source_fields=(
+  dict(
+  folder_id='SUBJECT_ID',
+  source_name='SOURCE_NAME',
+  source_id='SOURCE_ID',
+  ),
+'''
 SELECT
   "PARENT_SUBJECT_AREA",
   "PARENT_SUBJECT_ID",
@@ -233,9 +398,16 @@ FROM
 WHERE 1=1
 AND SUBJECT_ID = {folder_id}
 AND SOURCE_ID = {source_id}
-'''
+'''),
 
-list_target_fields='''
+list_target_fields=(
+  dict(
+  folder_id='SUBJECT_ID',
+  target_name='TARGET_NAME',
+  target_id='TARGET_ID',
+  last_saved='TARGET_UTC_LAST_SAVED',
+  ),
+'''
 SELECT
   "PARENT_SUBJECT_AREA",
   "PARENT_SUBJECT_ID",
@@ -282,9 +454,16 @@ FROM
 WHERE 1=1
 AND SUBJECT_ID = {folder_id}
 AND TARGET_ID = {target_id}
-'''
+'''),
 
-list_target='''
+list_target=(
+  dict(
+  folder_id='SUBJECT_ID',
+  target_name='TARGET_NAME',
+  target_id='TARGET_ID',
+  last_saved='TARGET_UTC_LAST_SAVED',
+  ),
+'''
 SELECT
   "PARENT_SUBJECT_AREA",
   "PARENT_SUBJECT_ID",
@@ -311,7 +490,7 @@ SELECT
   "TARGET_VERSION_NUMBER",
   "TARGET_VERSION_STATUS",
   "TARGET_UTC_CHECKIN",
-  "TARGET_UTC_LAST_SAVED", -- starttime in epoch -> datetime.datetime.fromtimestamp(1473705355958)
+  "TARGET_UTC_LAST_SAVED", -- last_saved in epoch -> datetime.datetime.fromtimestamp(1473705355958)
   "TARGET_LAST_SAVED",
   "REPOSITORY_NAME",
   "IS_SHORTCUT",
@@ -320,9 +499,16 @@ FROM
   "INF_RP"."REP_ALL_TARGETS"
 WHERE 1=1
 AND SUBJ_ID = {folder_id}
-'''
+'''),
 
-list_transformation='''
+list_transformation=(
+  dict(
+  transf_name='WIDGET_NAME',
+  transf_id='WIDGET_ID',
+  trans_type='WIDGET_TYPE',
+  folder_id='SUBJECT_ID',
+  ),
+'''
 SELECT
   "WIDGET_NAME",  -- transf_name
   "WIDGET_ID", -- transf_id
@@ -353,9 +539,17 @@ FROM
   "INF_RP"."OPB_WIDGET"
 WHERE 1=1
 AND SUBJECT_ID = {folder_id}
-'''
+'''),
 
-list_instance='''
+list_instance=(
+  dict(
+  instance_name='INSTANCE_NAME',
+  instance_id='INSTANCE_ID',
+  mapping_id='MAPPING_ID',
+  transf_id='WIDGET_ID',
+  trans_type='WIDGET_TYPE',
+  ),
+'''
 SELECT
   "MAPPING_ID", -- mapping_id
   "WIDGET_ID", -- transf_id
@@ -370,18 +564,24 @@ FROM
   "INF_RP"."OPB_WIDGET_INST"
 WHERE 1=1
 AND MAPPING_ID = {mapping_id}
-'''
+'''),
 
-list_session='''
+list_session=(
+  dict(
+  session_name='TASK_NAME',
+  session_id='TASK_ID',
+  mapping_id='MAPPING_ID',
+  ),
+'''
 SELECT
   "SUBJECT_AREA",
   "SUBJECT_ID",
-  "TASK_NAME",
-  "TASK_ID",
+  "TASK_NAME", -- session_name
+  "TASK_ID", -- session_id
+  "MAPPING_ID", -- mapping_id
   "IS_VALID",
   "LAST_SAVED",
   "DESCRIPTION",
-  "VERSION_NUMBER",
   "IS_ENABLED",
   "UTC_CHECKIN",
   "UTC_LAST_SAVED",
@@ -389,9 +589,11 @@ SELECT
   "TASK_TYPE",
   "TASK_TYPE_NAME"
 FROM
-  "INF_RP"."REP_ALL_TASKS"
+  "INF_RP"."REP_ALL_TASKS",
+  "INF_RP"."OPB_SESSION"
 WHERE TASK_TYPE = 68
+AND OPB_SESSION.SESSION_ID = REP_ALL_TASKS.TASK_ID
 AND SUBJECT_ID = {folder_id}
-'''
+'''),
 
 )

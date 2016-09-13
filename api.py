@@ -16,6 +16,10 @@ from cx_Oracle import (
   makedsn,
 )
 
+from sql import(
+  sql_oracle
+)
+
 creds = parse_yaml(dir_path + '/creds.yml')
 cred = dict2(creds['INFA_DEV2'])
 
@@ -30,27 +34,10 @@ elif cred.type == 'mssql':
 engine = sqlalchemy.create_engine(conn_str.format(**cred))
 # conn = engine.connect()
 
-result = engine.execute("select count(1) from INF_RP.OPB_MAPPING")
-for r in result:
-  print(str(r))
+fields, sql = sql_oracle.list_mapping
 
 
-class Infa_Rep:
-  """
-  A general class abstracting the objects in the Informatica
-  repository database.
-  """
-
-
-  def get_list_mappings(self, folder):
-    """
-    Obtain the list of mappings, ids in a folder.
-    """
-    
-
-  def get_list_workflows(self, folder):
-    """
-    Obtain the list of workflows, ids in a folder.
-    """
-  
-
+# result = engine.execute("select count(1) from INF_RP.OPB_MAPPING")
+result = engine.execute(sql.format(folder_id=108))
+data = [r for r in result]
+print(str(len(data)))
