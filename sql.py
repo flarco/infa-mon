@@ -2,6 +2,21 @@ from helpers import (
   dict2,
 )
 
+'''
+For Session Configuration:
+REP_SESS_CONFIG_PARM
+
+For SQL Override, Pre-SQL, Post-SQL:
+REP_WIDGET_ATTR  (use WIDGET_ID, from REP_SESS_PARTITION_DEF)
+
+For each connector (from instance to instance):
+REP_MAPPING_CONN_PORTS
+REP_MAPPING_UNCONN_PORTS
+
+For Connection variable value:
+REP_TASK_ATTR
+
+'''
 sql_template = dict(
   log_session_run=None,  # get log of folder-workflow-session ran ordered by most recent
   log_workflow_run=None,  # get log of folder-workflow ran ordered by most recent
@@ -102,7 +117,8 @@ list_session_conns = (
   session_id='SESSION_ID',
   transf_id='WIDGET_INSTANCE_ID',
   instance_name='INSTANCE_NAME',
-  connection_name='CNX_NAME',
+  connection_type='READER_WRITER_TYPE',
+  connection_name='CONN_NAME',
   ),
 '''
 SELECT
@@ -110,7 +126,12 @@ SELECT
   "WIDGET_TYPE",
   "INSTANCE_NAME", -- instance_name
   "READER_WRITER_TYPE",
-  "CNX_NAME",  -- connection_name
+  -- "CNX_NAME",  -- connection_name
+  CASE
+    WHEN CNX_NAME = '$Source' THEN  ATTR_VALUE
+    WHEN CNX_NAME = '$Target' THEN  ATTR_VALUE
+    ELSE CNX_NAME
+  END "CONN_NAME",
   "SESSION_ID",
   "SESS_WIDG_INST_ID",
   "SESS_EXTN_OBJECT_TYPE",
@@ -118,13 +139,16 @@ SELECT
   "SESS_CNX_REFS_OBJECT_TYPE",
   "SESS_CNX_REFS_OBJECT_SUBTYPE",
   "SESS_CNX_REFS_OBJECT_ID",
-  "WORKFLOW_ID", -- workflow_id
+  REP_SESS_WIDGET_CNXS."WORKFLOW_ID", -- workflow_id
   "SESSION_INSTANCE_ID",
   "SESSION_VERSION_NUMBER"
 FROM
   "INF_RP"."REP_SESS_WIDGET_CNXS"
+LEFT JOIN "INF_RP"."REP_TASK_ATTR" ON
+  REP_TASK_ATTR.ATTR_NAME LIKE  REP_SESS_WIDGET_CNXS.CNX_NAME || '%'
+  AND REP_SESS_WIDGET_CNXS.SESSION_ID = REP_TASK_ATTR.TASK_ID
 WHERE 1=1
-AND SESSION_ID = :session_id
+AND SESSION_ID IN {session_id}
 '''),
 
 log_workflow_run = (
