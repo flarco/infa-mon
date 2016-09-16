@@ -33,24 +33,27 @@ elif cred.type == 'mssql':
 
 engine = sqlalchemy.create_engine(conn_str.format(**cred))
 
-Repo = Infa_Rep(engine)
-Repo.get_list_folders()
 
-# folder = Repo.folders['ARIBA']
-folders = [
-  'SOR_BLUEBOX',
-  'BIDW_RMS',
-  'BIDW_PROCUREMENT',
-]
+if __name__ == '__main__':
+  Repo = Infa_Rep(engine)
+  Repo.get_list_folders()
 
-for i, folder_name in enumerate(folders):
-  folder = Repo.folders[folder_name]
-  folder.get_list_sources()
-  folder.get_list_targets()
-  folder.get_list_mappings()
-  folder.get_list_sessions()
-  folder.get_list_workflows()
-  if i == 0:
-    folder.generate_workflow_report_1()
-  else:
-    folder.generate_workflow_report_1(append=True)
+  # folder = Repo.folders['ARIBA']
+  folders = [
+    # 'SOR_BLUEBOX',
+    'BIDW_RMS',
+    'BIDW_PROCUREMENT',
+    'ARIBA',
+  ]
+
+  for i, folder_name in enumerate(folders):
+    folder = Repo.folders[folder_name]
+    folder.get_list_sources()
+    folder.get_list_targets()
+    folder.get_list_mappings()
+    folder.get_list_sessions()
+    folder.get_list_workflows()
+    # if i == 0:
+    #   folder.generate_workflow_report_1()
+    # else:
+    #   folder.generate_workflow_report_1(append=True)

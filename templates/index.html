@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <title>Infa-Mon</title>
+  <link rel="stylesheet" type="text/css" href="http://www.jeasyui.com/easyui/themes/default/easyui.css">
+  <link rel="stylesheet" type="text/css" href="http://www.jeasyui.com/easyui/themes/icon.css">
+  <link rel="stylesheet" type="text/css" href="http://www.jeasyui.com/easyui/themes/color.css">
+  <link rel="stylesheet" type="text/css" href="http://www.jeasyui.com/easyui/demo/demo.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='bootstrap/css/bootstrap.min.css') }}">
+  <script type="text/javascript" src="http://code.jquery.com/jquery-1.6.min.js"></script>
+  <script type="text/javascript" src="http://www.jeasyui.com/easyui/jquery.easyui.min.js"></script>
+  <script src="{{ url_for('static', filename='bootstrap/js/bootstrap.min.js') }}"></script>
+  <script type="text/javascript" src="{{ url_for('static', filename='js/loader.js') }}"></script>
+
+</head>
+
+<body>
+  <input type="text" placeholder="Search...">
+  <input id="cc" class="easyui-combobox" name="dept" data-options="valueField:'id',textField:'text',url:'test_data1.json'">
+  <h2>Informatica Objects Tree</h2>
+  <div style="margin:20px 0;"></div>
+  <div style="width: 512px; left: 0px; top: 66px;" class="panel layout-panel layout-panel-west layout-split-west easyui-fluid">
+    <div style="width: 507px;" class="panel-header">
+      <div class="panel-title">Plugins</div>
+
+      <div class="panel-tool">
+        <a style="display: none;" class="panel-tool-collapse" href="javascript:void(0)"></a>
+        <a class="layout-button-left" href="javascript:void(0)"></a>
+      </div>
+    </div>
+    <div class="panel-body layout-body" region="west" split="true" title="" style="padding: 5px; width: 507px; height: 849px;">
+
+      <ul id='object-tree' class="easyui-tree">
+        <li id='f-folders' data-options="state:'closed'">
+          <span>SOR_BLUEBOX</span>
+          <ul>
+            <li id='f-sources' data-options="state:'closed'">
+              <span>Sources</span>
+              <ul>
+                <li>TABLE1</li>
+                <li>TABLE2</li>
+                <li>TABLE3</li>
+                <li>TABLE4</li>
+              </ul>
+            </li>
+            <li id='f-targets' data-options="state:'closed'">
+              <span>Targets</span>
+              <ul>
+                <li>TABLE1</li>
+                <li>TABLE2</li>
+                <li>TABLE3</li>
+                <li>TABLE4</li>
+              </ul>
+            </li>
+            <li id='f-mappings' data-options="state:'closed'">
+              <span>Mappings</span>
+              <ul>
+                <li>m_baw_target</li>
+                <li>m_baw_target2</li>
+                <li>m_baw_target23</li>
+              </ul>
+            </li>
+            <li id='f-sessions' data-options="state:'closed'">
+              <span>Sessions</span>
+              <ul>
+                <li>s_baw_target</li>
+                <li>s_baw_target2</li>
+                <li>s_baw_target23</li>
+              </ul>
+            </li>
+            <li id='f-workflows' data-options="state:'closed'">
+              <span>Workflows</span>
+              <ul>
+                <li>w_baw_target</li>
+                <li>w_baw_target2</li>
+                <li>w_baw_target23</li>
+              </ul>
+            </li>
+          </ul>
+        </li>
+      </ul>
+      <ul id='object-tree2' class="easyui-tree" data-options="url:'object_tree.json'"></ul>
+    </div>
+  </div>
+  <div class="panel layout-panel layout-panel-center" data-options="collapsible:true,right:1">
+    <div style="width: 2048px; height: 877px;" class="panel-body panel-body-noheader layout-body panel-noscroll" title="" region="center">
+    </div>
+  </div>
+
+</body>
+
+</html>

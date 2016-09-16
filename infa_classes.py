@@ -206,6 +206,50 @@ class Folder:
         # print(','.join(WFRecord(**record)))
     
     out_file.close()
+  
+  def get_EU_FolderTree(self, id_):
+    "Generate a dict object to add to a easyuijs Tree"
+
+    def create_child(name):
+      "Create child element"
+      id_ += 1
+      return dict(
+        id=self.id_,
+        text=name,
+        # iconCls=None
+      )
+    
+    id_ += 1
+    child = dict(
+      id=id_,
+      text=folder.name,
+      # iconCls=None,
+      checked=False,
+      state='closed',
+      children = [
+        dict(
+          text='Sources', state='closed',
+          children = [create_child(n) for n in sorted(folder.sources)],
+        ),
+        dict(
+          text='Targets',state='closed',
+          children = [create_child(n) for n in sorted(folder.targets)],
+        ),
+        dict(
+          text='Mappings',state='closed',
+          children = [create_child(n) for n in sorted(folder.mappings)],
+        ),
+        dict(
+          text='Sessions',state='closed',
+          children = [create_child(n) for n in sorted(folder.sessions)],
+        ),
+        dict(
+          text='Workflows',state='closed',
+          children = [create_child(n) for n in sorted(folder.workflows)],
+        ),
+      ]
+    )
+    return child, id_
 
 class Infa_Rep:
   "A general class abstracting the objects in the Informatica repository database."
@@ -220,6 +264,7 @@ class Infa_Rep:
     """
     Obatin the list of folders in a repository.
     """
+    log("Getting list of folders.")
     fields, sql = sql_oracle.list_folder
     result = db.execute(sql)
 
@@ -227,5 +272,53 @@ class Infa_Rep:
       rec = get_rec(row, fields)
       self.folders[rec.folder_name] = Folder(**rec)
     
+class eUI_FolderTreeInfaObjects:
+  "A class to abstract objects for the Tree components of easyuiJS."
+
+  def __init__(self):
+    self.id_ = 0  # the id counter
+    self.root = []
+
+  def add_folder(self,folder):
+    "Generate a dict object to add to a easyuijs Tree"
+
+    def create_child(name):
+      "Create child element"
+      self.id_ += 1
+      return dict(
+        id=self.id_,
+        text=name,
+        # iconCls=None
+      )
     
-  
+    self.id_ += 1
+    child = dict(
+      id=self.id_,
+      text=folder.name,
+      # iconCls=None,
+      checked=False,
+      state='closed',
+      children = [
+        dict(
+          text='Sources', state='closed',
+          children = [create_child(n) for n in sorted(folder.sources)],
+        ),
+        dict(
+          text='Targets',state='closed',
+          children = [create_child(n) for n in sorted(folder.targets)],
+        ),
+        dict(
+          text='Mappings',state='closed',
+          children = [create_child(n) for n in sorted(folder.mappings)],
+        ),
+        dict(
+          text='Sessions',state='closed',
+          children = [create_child(n) for n in sorted(folder.sessions)],
+        ),
+        dict(
+          text='Workflows',state='closed',
+          children = [create_child(n) for n in sorted(folder.workflows)],
+        ),
+      ]
+    )
+    self.root.append(child)
