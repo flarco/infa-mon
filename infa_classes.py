@@ -288,6 +288,11 @@ class eUI_FolderTreeInfaObjects:
       return dict(
         id=self.id_,
         text=name,
+        attributes={
+            "url":"/test",
+            "price":100,
+            "klass": "child"
+        }
         # iconCls=None
       )
     

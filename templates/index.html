@@ -9,15 +9,14 @@
   <link rel="stylesheet" type="text/css" href="http://www.jeasyui.com/easyui/themes/color.css">
   <link rel="stylesheet" type="text/css" href="http://www.jeasyui.com/easyui/demo/demo.css">
   <link rel="stylesheet" href="{{ url_for('static', filename='bootstrap/css/bootstrap.min.css') }}">
-  <script type="text/javascript" src="http://code.jquery.com/jquery-1.6.min.js"></script>
+  <script type="text/javascript" src="http://code.jquery.com/jquery-3.1.0.min.js"></script>
   <script type="text/javascript" src="http://www.jeasyui.com/easyui/jquery.easyui.min.js"></script>
   <script src="{{ url_for('static', filename='bootstrap/js/bootstrap.min.js') }}"></script>
-  <script type="text/javascript" src="{{ url_for('static', filename='js/loader.js') }}"></script>
 
 </head>
 
 <body>
-  <input type="text" placeholder="Search...">
+  <!--<input type="text" placeholder="Search...">
   <input id="cc" class="easyui-combobox" name="dept" data-options="valueField:'id',textField:'text',url:'test_data1.json'">
   <h2>Informatica Objects Tree</h2>
   <div style="margin:20px 0;"></div>
@@ -87,7 +86,49 @@
   <div class="panel layout-panel layout-panel-center" data-options="collapsible:true,right:1">
     <div style="width: 2048px; height: 877px;" class="panel-body panel-body-noheader layout-body panel-noscroll" title="" region="center">
     </div>
+  </div>-->
+
+  <h2>Infa-Mon</h2>
+  <input type="text" placeholder="Search...">
+  <div style="margin:20px 0 10px 0;"></div>
+  <!--<div class="easyui-panel" title="Nested Panel" style="width:700px;height:200px;padding:10px;">-->
+  <div id="panel1" class="easyui-panel" title="Informatica Objects" style="padding:10px;height:600px" data-options="
+                tools:[{
+                    iconCls:'icon-reload',
+                    handler:function(){
+                        $('#panel1').panel('refresh', '_content.html');
+                    }
+                }]
+            ">
+    <div class="easyui-layout" data-options="fit:true">
+      <div data-options="region:'west',split:true" style="width:30%;max-width:400px;padding:10px">
+        <ul id='object-tree2' class="easyui-tree" data-options="url:'object_tree.json',lines:true,                    formatter:function(node){
+                        var s = node.text;
+                        if (node.children /*&& node.parent.text != 'DEV'*/){
+                            s += '&nbsp;<span style=\'color:blue\'>(' + node.children.length + ')</span>';
+                        }
+                        return s;
+                    }"></ul>
+      </div>
+      <div id="tt" class="easyui-tabs" style="width:500px;height:250px;" data-options="region:'center',tools:'#tab-tools'">
+        <div title="Tab1" style="padding:20px;display:none;">
+          tab1
+        </div>
+        <div title="Tab2" data-options="closable:true" style="overflow:auto;padding:20px;display:none;">
+          tab2
+        </div>
+        <div title="Tab3" data-options="iconCls:'icon-reload',closable:true" style="display:none;">
+          tab3
+        </div>
+      </div>
+      <div id="tab-tools">
+            <a href="javascript:void(0)" class="easyui-linkbutton" data-options="plain:true,iconCls:'icon-add'" onclick="addPanel()"></a>
+            <a href="javascript:void(0)" class="easyui-linkbutton" data-options="plain:true,iconCls:'icon-remove'" onclick="removePanel()"></a>
+        </div>
+    </div>
   </div>
+  
+  <script src="{{ url_for('static', filename='js/loader.js') }}"></script>
 
 </body>
 
