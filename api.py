@@ -20,8 +20,8 @@ from infa_classes import (
 
 
 creds = parse_yaml(dir_path + '/creds.yml')
-cred = d2(creds['INFA_DEV2'])
-cred = d2(creds['INFA_QA'])
+cred = d2(creds['INFA_DEV'])
+# cred = d2(creds['INFA_QA'])
 
 if cred.type == 'oracle':
   dnsStr = makedsn(cred.host, cred.port, service_name=cred.instance)
@@ -31,7 +31,7 @@ if cred.type == 'oracle':
 elif cred.type == 'mssql':
   conn_str = 'mssql+pymssql://{user}:{password}@{host}:{port}/{instance}'
 
-engine = sqlalchemy.create_engine(conn_str.format(**cred))
+engine = sqlalchemy.create_engine(conn_str.format(**cred), pool_size=5)
 
 
 if __name__ == '__main__':

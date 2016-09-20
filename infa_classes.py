@@ -12,7 +12,7 @@ from helpers import (
   d,
   d2,
   dir_path,
-  split_list
+  split_list,
 )
 
 from sql import(
@@ -259,7 +259,10 @@ class Infa_Rep:
     db = engine.connect()
 
     self.folders = d2()
-  
+    self.last_wf_run_id = None
+    self.run_stats_data = OrderedDict()
+    self.keep_refreshing = False
+
   def get_list_folders(self):
     """
     Obatin the list of folders in a repository.
@@ -271,21 +274,71 @@ class Infa_Rep:
     for row in result:
       rec = get_rec(row, fields)
       self.folders[rec.folder_name] = Folder(**rec)
+  
+  def get_latest_run_stats(self):
     
+    if not self.last_wf_run_id:
+      log("Getting latest run stats [full].")
+      fields, sql = sql_oracle.log_session_run_full
+      result = db.execute(
+        sql,
+        d(limit=1000)
+      )
+    else:
+      log("Getting latest run stats [recent > {s}].".format(
+          s=self.last_wf_run_id
+        )
+      )
+      fields, sql = sql_oracle.log_session_run_recent
+      result = db.execute(
+        sql,
+        d(last_wf_run_id=self.last_wf_run_id)
+      )
+    
+    for row in result:
+      rec = get_rec(row, fields)
+      rec['start'] = rec['start'].strftime('%Y-%m-%d %H:%M:%S')
+      rec['success'] = 'No' if rec['error'] else 'Yes'
+      try:
+        rec['end'] = rec['end'].strftime('%Y-%m-%d %H:%M:%S')
+        self.last_wf_run_id = rec['workflow_run_id'] if not self.last_wf_run_id or rec['workflow_run_id'] > self.last_wf_run_id else self.last_wf_run_id
+      except ValueError:  # still in progress
+        rec['end'] = ''
+        rec['success'] = 'Running'
+      rec['duration'] = float(rec['duration'])
+      
+      combo = str(rec.workflow_run_id) + '-' + str(rec.task_id)
+      self.run_stats_data[combo] = rec
+      # self.run_stats_data.append(dict(rec))
+    
+
 class eUI_FolderTreeInfaObjects:
   "A class to abstract objects for the Tree components of easyuiJS."
 
   def __init__(self):
     self.id_ = 0  # the id counter
     self.root = []
+    self.folders = OrderedDict()
 
-  def add_folder(self,folder):
+  def root_search(self, q_text):
+    "Search the object text"
+    result = []
+    for f in sorted(self.folders):
+      folder = folders[f]
+      for categ in folder['children']:
+        for obj in categ['children']:
+          if q_text.lower() in str(obj['text']).lower():
+            result.append(folder)
+    
+    return result
+
+  def add_folder(self,folder, q_text = None):
     "Generate a dict object to add to a easyuijs Tree"
 
     def create_child(name):
       "Create child element"
       self.id_ += 1
-      return dict(
+      child2 = dict(
         id=self.id_,
         text=name,
         attributes={
@@ -295,7 +348,30 @@ class eUI_FolderTreeInfaObjects:
         }
         # iconCls=None
       )
+
+      if q_text:
+        if q_text.lower() in name.lower():
+          return child2
+        else:
+          return None
+      else:
+        return child2
     
+
+    def gen_category(cat_name, list_):
+      child_list = []
+      for n in sorted(list_):
+        obj = create_child(n)
+        if obj:
+          child_list.append(obj)
+      
+      category = dict(
+        text=cat_name, state='open' if len(child_list) > 0 and q_text else 'closed',
+        children = child_list,
+      )
+      return category
+    
+
     self.id_ += 1
     child = dict(
       id=self.id_,
@@ -304,26 +380,14 @@ class eUI_FolderTreeInfaObjects:
       checked=False,
       state='closed',
       children = [
-        dict(
-          text='Sources', state='closed',
-          children = [create_child(n) for n in sorted(folder.sources)],
-        ),
-        dict(
-          text='Targets',state='closed',
-          children = [create_child(n) for n in sorted(folder.targets)],
-        ),
-        dict(
-          text='Mappings',state='closed',
-          children = [create_child(n) for n in sorted(folder.mappings)],
-        ),
-        dict(
-          text='Sessions',state='closed',
-          children = [create_child(n) for n in sorted(folder.sessions)],
-        ),
-        dict(
-          text='Workflows',state='closed',
-          children = [create_child(n) for n in sorted(folder.workflows)],
-        ),
+        gen_category('Sources',folder.sources),
+        gen_category('Targets',folder.targets),
+        gen_category('Mappings',folder.mappings),
+        gen_category('Sessions',folder.sessions),
+        gen_category('Workflows',folder.workflows),
       ]
     )
-    self.root.append(child)
+
+    # self.root.append(child)
+    self.folders[folder.name] = child
+    self.root = [self.folders[f] for f in sorted(self.folders)]

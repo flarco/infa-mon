@@ -37,57 +37,109 @@ sql_template = dict(
 
 sql_oracle = dict2(
 
-log_session_run = (
+log_session_run_full = (
   dict(
-  folder_id='SUBJECT_ID',
-  workflow_id='WORKFLOW_ID',
-  workflow_run_id='WORKFLOW_RUN_ID',
-  session_id='TASK_ID',
-  session_name='TASK_NAME',
-  start_time='START_TIME',
-  end_time='END_TIME',
-  error_message='RUN_ERR_MSG',
+    folder='FOLDER_NAME',
+    workflow='WORKFLOW_NAME',
+    mapping='MAPPING_NAME',
+    workflow_run_id='WORKFLOW_RUN_ID',
+    task_id='TASK_ID',
+    session='INSTANCE_NAME',
+    start='START_TIME',
+    end='END_TIME',
+    duration='DURATION_MIN',
+    error='RUN_ERR_MSG',
+  ),
+'''
+SELECT * FROM (
+  SELECT
+    O.WORKFLOW_RUN_ID,
+    F.SUBJ_NAME as FOLDER_NAME,
+    W.WORKFLOW_NAME,
+    O.INSTANCE_NAME,
+    M.MAPPING_NAME,
+    O.TASK_ID,
+    O.START_TIME,
+    O.END_TIME,
+    CASE
+    WHEN O.END_TIME-O.START_TIME < 0 THEN ROUND((SYSDATE-7/24-O.START_TIME)*24*60,1)
+    ELSE ROUND((O.END_TIME-O.START_TIME)*24*60,1)
+    END as DURATION_MIN,
+    O.RUN_ERR_CODE,
+    O.RUN_ERR_MSG,
+    O.SERVER_NAME
+  FROM
+    "INF_RP"."OPB_TASK_INST_RUN" O,
+    "INF_RP"."REP_WORKFLOWS" W,
+    "INF_RP"."OPB_SUBJECT" F,
+    "INF_RP"."OPB_SESSION" S,
+    "INF_RP"."OPB_MAPPING" M
+  WHERE 1=1
+    AND F.SUBJ_ID = O.SUBJECT_ID
+    AND S.SESSION_ID = O.TASK_ID
+    AND M.MAPPING_ID = S.MAPPING_ID
+    AND W.WORKFLOW_ID = O.WORKFLOW_ID
+    AND TASK_TYPE <> 62
+    AND WORKFLOW_RUN_ID <> 2053353892 -- some weird future-dated entry
+  ORDER BY WORKFLOW_RUN_ID desc
+) T
+WHERE ROWNUM <= :limit
+'''),
+
+log_session_run_recent = (
+  dict(
+    folder='FOLDER_NAME',
+    workflow='WORKFLOW_NAME',
+    mapping='MAPPING_NAME',
+    workflow_run_id='WORKFLOW_RUN_ID',
+    task_id='TASK_ID',
+    session='INSTANCE_NAME',
+    start='START_TIME',
+    end='END_TIME',
+    duration='DURATION_MIN',
+    error='RUN_ERR_MSG',
   ),
 '''
 SELECT
-  "SUBJECT_ID",
-  "WORKFLOW_ID",
-  "WORKFLOW_RUN_ID",
-  "WORKLET_RUN_ID",
-  "CHILD_RUN_ID",
-  "INSTANCE_ID",
-  "INSTANCE_NAME",
-  "TASK_ID",
-  "TASK_TYPE",
-  "START_TIME",
-  "END_TIME",
-  "RUN_ERR_CODE",
-  "RUN_ERR_MSG",
-  "RUN_STATUS_CODE",
-  "TASK_NAME",
-  "RUN_MODE",
-  "VERSION_NUMBER",
-  "SERVER_ID",
-  "SERVER_NAME",
-  "FRAGMENT_ID",
-  "SERVER_NODE_ID",
-  "SERVER_NODE_NAME"
+  O.WORKFLOW_RUN_ID,
+  F.SUBJ_NAME as FOLDER_NAME,
+  W.WORKFLOW_NAME,
+  O.INSTANCE_NAME,
+  M.MAPPING_NAME,
+  O.TASK_ID,
+  O.START_TIME,
+  O.END_TIME,
+  CASE
+    WHEN O.END_TIME-O.START_TIME < 0 THEN ROUND((SYSDATE-7/24-O.START_TIME)*24*60,1)
+    ELSE ROUND((O.END_TIME-O.START_TIME)*24*60,1)
+    END as DURATION_MIN,
+  O.RUN_ERR_CODE,
+  O.RUN_ERR_MSG,
+  O.SERVER_NAME
 FROM
-  "INF_RP"."OPB_TASK_INST_RUN"
+  "INF_RP"."OPB_TASK_INST_RUN" O,
+  "INF_RP"."REP_WORKFLOWS" W,
+  "INF_RP"."OPB_SUBJECT" F,
+  "INF_RP"."OPB_SESSION" S,
+  "INF_RP"."OPB_MAPPING" M
 WHERE 1=1
+  AND F.SUBJ_ID = O.SUBJECT_ID
+  AND S.SESSION_ID = O.TASK_ID
+  AND M.MAPPING_ID = S.MAPPING_ID
+  AND W.WORKFLOW_ID = O.WORKFLOW_ID
+  AND WORKFLOW_RUN_ID > :last_wf_run_id
+  AND TASK_TYPE <> 62
   AND WORKFLOW_RUN_ID <> 2053353892 -- some weird future-dated entry
-  AND WORKFLOW_ID = :workflow_id
-  AND TASK_NAME <> 'Start'
 ORDER BY WORKFLOW_RUN_ID desc
 '''),
 
 log_session_run2 = (
   dict(
-  combo1='RUNCONTEXT',
-  starttime='ENTRYTIME',
-  folder_name='FOLDER',
-  workflow_name='FOLDER',
-  session_name='SESSIONPATH',
+    combo1='RUNCONTEXT',
+    starttime='ENTRYTIME',
+    folder_name='FOLDER',
+    workflow_name='FOLDER',
+    session_name='SESSIONPATH',
   ),
 '''
 SELECT
@@ -113,12 +165,12 @@ ORDER BY ENTRYTIME desc
 
 list_session_conns = (
   dict(
-  workflow_id='WORKFLOW_ID',
-  session_id='SESSION_ID',
-  transf_id='WIDGET_INSTANCE_ID',
-  instance_name='INSTANCE_NAME',
-  connection_type='READER_WRITER_TYPE',
-  connection_name='CONN_NAME',
+    workflow_id='WORKFLOW_ID',
+    session_id='SESSION_ID',
+    transf_id='WIDGET_INSTANCE_ID',
+    instance_name='INSTANCE_NAME',
+    connection_type='READER_WRITER_TYPE',
+    connection_name='CONN_NAME',
   ),
 '''
 SELECT
@@ -153,14 +205,14 @@ AND SESSION_ID IN {session_id}
 
 log_workflow_run = (
   dict(
-  workflow_id='WORKFLOW_ID',
-  workflow_name='WORKFLOW_NAME',
-  workflow_run_id='WORKFLOW_RUN_ID',
-  folder_id='SUBJECT_ID',
-  start_time='START_TIME',
-  end_time='END_TIME',
-  log_file='LOG_FILE',
-  error_message='RUN_ERR_MSG',
+    workflow_id='WORKFLOW_ID',
+    workflow_name='WORKFLOW_NAME',
+    workflow_run_id='WORKFLOW_RUN_ID',
+    folder_id='SUBJECT_ID',
+    start_time='START_TIME',
+    end_time='END_TIME',
+    log_file='LOG_FILE',
+    error_message='RUN_ERR_MSG',
   ),
 '''
 SELECT
@@ -199,9 +251,9 @@ ORDER BY WORKFLOW_RUN_ID desc
 
 list_mapping=(
   dict(
-  folder_id='SUBJECT_ID',
-  mapping_name='MAPPING_NAME',
-  mapping_id='MAPPING_ID',
+    folder_id='SUBJECT_ID',
+    mapping_name='MAPPING_NAME',
+    mapping_id='MAPPING_ID',
   ),
 '''
 SELECT
@@ -237,9 +289,9 @@ AND SUBJECT_ID = :folder_id
 
 list_mapplet=(
   dict(
-  folder_id='SUBJECT_ID',
-  mapplet_name='MAPPLET_NAME',
-  mapplet_id='MAPPLET_ID',
+    folder_id='SUBJECT_ID',
+    mapplet_name='MAPPLET_NAME',
+    mapplet_id='MAPPLET_ID',
   ),
 '''
 SELECT
@@ -276,9 +328,9 @@ AND SUBJECT_ID = :folder_id
 
 list_workflow=(
   dict(
-  workflow_id='WORKFLOW_ID',
-  workflow_name='WORKFLOW_NAME',
-  folder_id='SUBJECT_ID',
+    workflow_id='WORKFLOW_ID',
+    workflow_name='WORKFLOW_NAME',
+    folder_id='SUBJECT_ID',
   ),'''
 SELECT
   "SUBJECT_AREA",
@@ -314,10 +366,10 @@ AND SUBJECT_ID = :folder_id
 
 list_source=(
   dict(
-  folder_id='SUBJECT_ID',
-  source_name='SOURCE_NAME',
-  source_id='SOURCE_ID',
-  database_name='SOURCE_DATABASE_NAME',
+    folder_id='SUBJECT_ID',
+    source_name='SOURCE_NAME',
+    source_id='SOURCE_ID',
+    database_name='SOURCE_DATABASE_NAME',
   ),
 '''
 SELECT
@@ -365,9 +417,9 @@ AND SUBJECT_ID = :folder_id
 
 list_source_fields=(
   dict(
-  folder_id='SUBJECT_ID',
-  source_name='SOURCE_NAME',
-  source_id='SOURCE_ID',
+    folder_id='SUBJECT_ID',
+    source_name='SOURCE_NAME',
+    source_id='SOURCE_ID',
   ),
 '''
 SELECT
@@ -429,10 +481,10 @@ AND SOURCE_ID = :source_id
 
 list_target_fields=(
   dict(
-  folder_id='SUBJECT_ID',
-  target_name='TARGET_NAME',
-  target_id='TARGET_ID',
-  last_saved='TARGET_UTC_LAST_SAVED',
+    folder_id='SUBJECT_ID',
+    target_name='TARGET_NAME',
+    target_id='TARGET_ID',
+    last_saved='TARGET_UTC_LAST_SAVED',
   ),
 '''
 SELECT
@@ -485,10 +537,10 @@ AND TARGET_ID = :target_id
 
 list_target=(
   dict(
-  folder_id='SUBJECT_ID',
-  target_name='TARGET_NAME',
-  target_id='TARGET_ID',
-  last_saved='TARGET_UTC_LAST_SAVED',
+    folder_id='SUBJECT_ID',
+    target_name='TARGET_NAME',
+    target_id='TARGET_ID',
+    last_saved='TARGET_UTC_LAST_SAVED',
   ),
 '''
 SELECT
@@ -530,10 +582,10 @@ AND SUBJECT_ID = :folder_id
 
 list_transformation=(
   dict(
-  transf_name='WIDGET_NAME',
-  transf_id='WIDGET_ID',
-  trans_type='WIDGET_TYPE',
-  folder_id='SUBJECT_ID',
+    transf_name='WIDGET_NAME',
+    transf_id='WIDGET_ID',
+    trans_type='WIDGET_TYPE',
+    folder_id='SUBJECT_ID',
   ),
 '''
 SELECT
@@ -570,11 +622,11 @@ AND SUBJECT_ID = :folder_id
 
 list_instance=(
   dict(
-  instance_name='INSTANCE_NAME',
-  instance_id='INSTANCE_ID',
-  mapping_id='MAPPING_ID',
-  transf_id='WIDGET_ID',
-  trans_type='WIDGET_TYPE',
+    instance_name='INSTANCE_NAME',
+    instance_id='INSTANCE_ID',
+    mapping_id='MAPPING_ID',
+    transf_id='WIDGET_ID',
+    trans_type='WIDGET_TYPE',
   ),
 '''
 SELECT
@@ -595,9 +647,9 @@ AND MAPPING_ID = :mapping_id
 
 list_session=(
   dict(
-  session_name='TASK_NAME',
-  session_id='TASK_ID',
-  mapping_id='MAPPING_ID',
+    session_name='TASK_NAME',
+    session_id='TASK_ID',
+    mapping_id='MAPPING_ID',
   ),
 '''
 SELECT

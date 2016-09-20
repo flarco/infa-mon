@@ -1,5 +1,14 @@
-import os, yaml, itertools
+import os, yaml, itertools, threading
+
 from celery import Celery
+
+from threading import Thread, Lock
+from functools import wraps
+
+from collections import (
+  OrderedDict,
+  namedtuple
+)
 
 class dict2(dict):
   """ Dict with attributes getter/setter. """
@@ -16,9 +25,19 @@ def parse_yaml(file_path):
 
 
 def make_celery(app):
-  celery = Celery(app.import_name, backend=app.config['CELERY_BACKEND'],
-                  broker=app.config['CELERY_BROKER_URL'])
-  celery.conf.update(app.config)
+  class CELERY_CONFIG(object):
+    CELERY_BACKEND='sqlalchemy'
+    CELERY_BROKER_URL='sqla+sqlite:///:memory:'
+    # BROKER_URL = "memory://"
+    CELERY_CACHE_BACKEND = "cache://memory"
+    # CELERY_RESULT_BACKEND = "memory://"
+  
+  # celery = Celery(app.import_name, backend=app.config['CELERY_BACKEND'],
+  #                 broker=app.config['CELERY_BROKER_URL'])
+  # celery.conf.update(app.config)
+
+  celery = Celery("task")
+  celery.config_from_object(CELERY_CONFIG)
   TaskBase = celery.Task
   class ContextTask(TaskBase):
     abstract = True
@@ -35,6 +54,88 @@ def split_list(iterable, size):
   while item:
     yield item
     item = list(itertools.islice(it, size))
+
+
+class ServerSentEvent():
+  "SSE 'protocol' is described here: http://mzl.la/UPFyxY"
+  def __init__(self, data):
+    self.data = data
+    self.event = None
+    self.id = None
+    self.desc_map = {
+      self.data : "data",
+      self.event : "event",
+      self.id : "id"
+    }
+
+  def encode(self):
+    if not self.data:
+      return ""
+    lines = ["%s: %s" % (v, k)
+              for k, v in self.desc_map.iteritems() if k]
+    
+    return "%s\n\n" % "\n".join(lines)
+
+all_threads = OrderedDict()
+thLock = Lock()
+
+def interrupt():
+  global all_threads, thLock
+  for th in all_threads.values():
+    with thLock:
+      th.cancel()
+
+def run_async(func):
+  """
+    run_async(func)
+      function decorator, intended to make "func" run in a separate
+      thread (asynchronously).
+      Returns the created Thread object
+
+      E.g.:
+      @run_async
+      def task1():
+        do_something
+
+      @run_async
+      def task2():
+        do_something_too
+
+      t1 = task1()
+      t2 = task2()
+      ...
+      t1.join()
+      t2.join()
+  """
+
+  # clear out idle threads
+  # with thLock:
+  #   for k in all_threads:
+  #     if not all_threads[k].isAlive():
+  #       del(all_threads[k])
+  
+  @wraps(func)
+  def async_func(*args, **kwargs):
+    global all_threads, thLock
+
+    f_name = '_'.join([func.__name__, str(args), str(kwargs)])
+    func_hl = None
+
+    if f_name in all_threads:
+      if all_threads[f_name].isAlive():
+        func_hl = all_threads[f_name]
+    
+    if not func_hl:
+      func_hl = Thread(target = func, args = args, kwargs = kwargs)
+      func_hl.start()
+    
+    with thLock:
+      all_threads[f_name] = func_hl
+
+    return all_threads[f_name]
+
+  return async_func
+
 
 d = dict
 d2 = dict2

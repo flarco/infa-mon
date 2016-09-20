@@ -89,8 +89,13 @@
   </div>-->
 
   <h2>Infa-Mon</h2>
-  <input type="text" placeholder="Search...">
-  <div style="margin:20px 0 10px 0;"></div>
+  
+  <div style="margin:20px 0;">
+    <a href="#" class="easyui-linkbutton" onclick="collapseAll()">CollapseAll</a>
+    <a href="#" class="easyui-linkbutton" onclick="expandAll()">ExpandAll</a>
+    <a href="#" class="easyui-linkbutton" onclick="expandTo()">ExpandTo</a>
+    <a href="#" class="easyui-linkbutton" onclick="getSelected()">GetSelected</a>
+  </div>
   <!--<div class="easyui-panel" title="Nested Panel" style="width:700px;height:200px;padding:10px;">-->
   <div id="panel1" class="easyui-panel" title="Informatica Objects" style="padding:10px;height:600px" data-options="
                 tools:[{
@@ -102,6 +107,62 @@
             ">
     <div class="easyui-layout" data-options="fit:true">
       <div data-options="region:'west',split:true" style="width:30%;max-width:400px;padding:10px">
+        <input type="text" placeholder="Search...">
+        <ul id='object-tree' class="easyui-tree" data-options="lines:true,                    formatter:function(node){
+                        var s = node.text;
+                        if (node.children /*&& node.parent.text != 'DEV'*/){
+                            s += '&nbsp;<span style=\'color:blue\'>(' + node.children.length + ')</span>';
+                        }
+                        return s;
+                    }">
+          <li id='f-folders' data-options="state:'closed'">
+            <span>SOR_BLUEBOX</span>
+            <ul>
+              <li id='f-sources' data-options="state:'closed'">
+                <span>Sources</span>
+                <ul>
+                  <li>TABLE1</li>
+                  <li>TABLE2</li>
+                  <li>TABLE3</li>
+                  <li>TABLE4</li>
+                </ul>
+              </li>
+              <li id='f-targets' data-options="state:'closed'">
+                <span>Targets</span>
+                <ul>
+                  <li>TABLE1</li>
+                  <li>TABLE2</li>
+                  <li>TABLE3</li>
+                  <li>TABLE4</li>
+                </ul>
+              </li>
+              <li id='f-mappings' data-options="state:'closed'">
+                <span>Mappings</span>
+                <ul>
+                  <li>m_baw_target</li>
+                  <li>m_baw_target2</li>
+                  <li>m_baw_target23</li>
+                </ul>
+              </li>
+              <li id='f-sessions' data-options="state:'closed'">
+                <span>Sessions</span>
+                <ul>
+                  <li>s_baw_target</li>
+                  <li>s_baw_target2</li>
+                  <li>s_baw_target23</li>
+                </ul>
+              </li>
+              <li id='f-workflows' data-options="state:'closed'">
+                <span>Workflows</span>
+                <ul>
+                  <li>w_baw_target</li>
+                  <li>w_baw_target2</li>
+                  <li>w_baw_target23</li>
+                </ul>
+              </li>
+            </ul>
+          </li>
+        </ul>
         <ul id='object-tree2' class="easyui-tree" data-options="url:'object_tree.json',lines:true,                    formatter:function(node){
                         var s = node.text;
                         if (node.children /*&& node.parent.text != 'DEV'*/){
@@ -122,12 +183,12 @@
         </div>
       </div>
       <div id="tab-tools">
-            <a href="javascript:void(0)" class="easyui-linkbutton" data-options="plain:true,iconCls:'icon-add'" onclick="addPanel()"></a>
-            <a href="javascript:void(0)" class="easyui-linkbutton" data-options="plain:true,iconCls:'icon-remove'" onclick="removePanel()"></a>
-        </div>
+        <a href="javascript:void(0)" class="easyui-linkbutton" data-options="plain:true,iconCls:'icon-add'" onclick="addPanel()"></a>
+        <a href="javascript:void(0)" class="easyui-linkbutton" data-options="plain:true,iconCls:'icon-remove'" onclick="removePanel()"></a>
+      </div>
     </div>
   </div>
-  
+
   <script src="{{ url_for('static', filename='js/loader.js') }}"></script>
 
 </body>
