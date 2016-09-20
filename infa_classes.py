@@ -1,4 +1,4 @@
-import logging
+import logging, datetime
 
 logger = logging.getLogger()
 handler = logging.StreamHandler()
@@ -276,7 +276,7 @@ class Infa_Rep:
       self.folders[rec.folder_name] = Folder(**rec)
   
   def get_latest_run_stats(self):
-    
+    self.last_run_stats_refresh = datetime.datetime.now()
     if not self.last_wf_run_id:
       log("Getting latest run stats [full].")
       fields, sql = sql_oracle.log_session_run_full
@@ -285,7 +285,7 @@ class Infa_Rep:
         d(limit=1000)
       )
     else:
-      log("Getting latest run stats [recent > {s}].".format(
+      log("Getting latest run stats [recent >= {s}].".format(
           s=self.last_wf_run_id
         )
       )
@@ -295,6 +295,7 @@ class Infa_Rep:
         d(last_wf_run_id=self.last_wf_run_id)
       )
     
+    running_wf_run_id = None
     for row in result:
       rec = get_rec(row, fields)
       rec['start'] = rec['start'].strftime('%Y-%m-%d %H:%M:%S')
@@ -305,12 +306,14 @@ class Infa_Rep:
       except ValueError:  # still in progress
         rec['end'] = ''
         rec['success'] = 'Running'
+        running_wf_run_id = rec['workflow_run_id'] if not running_wf_run_id or rec['workflow_run_id'] < running_wf_run_id else running_wf_run_id
       rec['duration'] = float(rec['duration'])
       
       combo = str(rec.workflow_run_id) + '-' + str(rec.task_id)
       self.run_stats_data[combo] = rec
-      # self.run_stats_data.append(dict(rec))
     
+    if running_wf_run_id:
+      self.last_wf_run_id = running_wf_run_id
 
 class eUI_FolderTreeInfaObjects:
   "A class to abstract objects for the Tree components of easyuiJS."

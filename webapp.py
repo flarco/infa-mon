@@ -38,28 +38,28 @@ def push_event(text):
 
 @run_async
 def refresh_run_stat():
-  Repo.get_latest_run_stats()
+  RepoDev.get_latest_run_stats()
 
 
 @run_async
 def keep_refreshing_run_stat():
   while True:
     time.sleep(3)
-    if Repo.keep_refreshing:
-      Repo.get_latest_run_stats()
+    if RepoDev.keep_refreshing:
+      RepoDev.get_latest_run_stats()
       gevent.spawn(push_event('refreshMonData'))
     else:
       break
 
 def stop_refreshes():
-  Repo.keep_refreshing =False
+  RepoDev.keep_refreshing =False
 
 # atexit.register(stop_refreshes)
 
 @run_async
 def refresh_folder(folder_name):
   gevent.spawn(push_event(str(datetime.datetime.now()) + ' - START - ' + folder_name))
-  folder = Repo.folders[folder_name]
+  folder = RepoDev.folders[folder_name]
   folder.get_list_sources()
   folder.get_list_targets()
   folder.get_list_mappings()
@@ -73,8 +73,8 @@ def refresh_folder(folder_name):
 
 
 infa_objects = eUI_FolderTreeInfaObjects()
-Repo = Infa_Rep(engine)
-Repo.get_list_folders()
+RepoDev = Infa_Rep(engine)
+RepoDev.get_list_folders()
 refresh_folder('BIDW_RMS')
 refresh_run_stat()
 
@@ -82,6 +82,13 @@ refresh_run_stat()
 @application.route('/objects', methods=['GET'])
 def objects():
   return render_template('objects.html')
+
+@application.route('/poll_mon_data', methods=['GET'])
+def poll_mon_data():
+  record = request.values.to_dict()
+  if record['id'] == 'dev':
+    refresh_run_stat()
+  return "OK Polling"
 
 
 @application.route('/monitor', methods=['GET'])
@@ -112,7 +119,7 @@ def get_content(object):
 
   if object == 'run_stats_detail':
     combo = record['combo']
-    content = content.format(error_message=Repo.run_stats_data[combo].error)
+    content = content.format(error_message=RepoDev.run_stats_data[combo].error)
   
   return content
 
@@ -120,16 +127,16 @@ def get_content(object):
 def test():
  return render_template('test.html')
 
-@application.route('/switch', methods=['GET'])
-def monitor_switch():
-  record = request.values.to_dict()
-  if record['status'] == 'true':
-    Repo.keep_refreshing = True
-    keep_refreshing_run_stat()
-  else:
-    Repo.keep_refreshing = False
+# @application.route('/switch', methods=['GET'])
+# def monitor_switch():
+#   record = request.values.to_dict()
+#   if record['status'] == 'true':
+#     RepoDev.keep_refreshing = True
+#     keep_refreshing_run_stat()
+#   else:
+#     RepoDev.keep_refreshing = False
   
-  return 'OK! Switched ' + record['status']
+#   return 'OK! Switched ' + record['status']
 
 @application.route('/<object>.json', methods=['GET','POST'])
 def get_data(object):
@@ -197,46 +204,16 @@ def get_data(object):
     ]
 
   if object == 'monitor_data_dev':
-    data = [
-      dict(
-        folder='G',
-        workflow='G',
-        session='G',
-        mapping='G',
-        start=2,
-        duration='G',
-        success='Yes',
-        error='',
-      ),
-      dict(
-        folder='Fa',
-        workflow='G',
-        session='G',
-        mapping='G',
-        start=33,
-        duration='G',
-        success='No',
-        error='ERORO!',
-      ),
-      dict(
-        folder='Faa',
-        workflow='G',
-        session='G',
-        mapping='G',
-        start=1,
-        duration='G',
-        success='No',
-        error='ERORO!',
-      ),
-    ]
-
-    data = [Repo.run_stats_data[i] for i in sorted(Repo.run_stats_data, reverse=True)]
+    # if RepoDev.last_run_stats_refresh < datetime.datetime.now().now() - datetime.timedelta(seconds=20):
+    #   RepoDev.get_latest_run_stats()
+    data = [RepoDev.run_stats_data[i] for i in sorted(RepoDev.run_stats_data, reverse=True)]
+      
     
   return json.dumps(data)
 
 @application.route("/refresh")
 def refresh1():
-  Repo.get_list_folders()
+  RepoDev.get_list_folders()
   folders = [
     'SOR_BLUEBOX',
     'BIDW_RMS',
@@ -244,7 +221,7 @@ def refresh1():
     'ARIBA',
   ]
 
-  for i, folder_name in enumerate(sorted(Repo.folders)):
+  for i, folder_name in enumerate(sorted(RepoDev.folders)):
     if not folder_name in folders: continue
     refresh_folder(folder_name)
   
