@@ -132,7 +132,7 @@ def run_async(func):
     with thLock:
       all_threads[f_name] = func_hl
 
-    return all_threads[f_name]
+    return func_hl
 
   return async_func
 

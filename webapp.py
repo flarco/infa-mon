@@ -1,4 +1,4 @@
-from api import engine
+from api import engines
 from infa_classes import (
   Infa_Rep,
   eUI_FolderTreeInfaObjects
@@ -19,7 +19,8 @@ from helpers import (
   ServerSentEvent,
   all_threads,
   run_async,
-  interrupt
+  interrupt,
+  d2,
 )
 
 application = Flask(__name__)
@@ -41,43 +42,33 @@ def refresh_run_stat():
   RepoDev.get_latest_run_stats()
 
 
-@run_async
-def keep_refreshing_run_stat():
-  while True:
-    time.sleep(3)
-    if RepoDev.keep_refreshing:
-      RepoDev.get_latest_run_stats()
-      gevent.spawn(push_event('refreshMonData'))
-    else:
-      break
-
 def stop_refreshes():
   RepoDev.keep_refreshing =False
 
-# atexit.register(stop_refreshes)
+
 
 @run_async
-def refresh_folder(folder_name):
+def refresh_folder(env, folder_name):
   gevent.spawn(push_event(str(datetime.datetime.now()) + ' - START - ' + folder_name))
-  folder = RepoDev.folders[folder_name]
-  folder.get_list_sources()
-  folder.get_list_targets()
-  folder.get_list_mappings()
-  folder.get_list_sessions()
-  folder.get_list_workflows()
-  infa_objects.add_folder(folder)
+  Repo[env].objects.get_folder_objects(folder_name).join()
   gevent.spawn(push_event(str(datetime.datetime.now()) + ' - END - ' + folder_name))
   gevent.spawn(push_event('refreshObjectTree'))
 
 
+def create_repo(name, engine):
+  repo = Infa_Rep(name, engine)
+  repo.get_list_folders()
+  repo.get_latest_run_stats()
 
+  return repo
 
-infa_objects = eUI_FolderTreeInfaObjects()
-RepoDev = Infa_Rep(engine)
-RepoDev.get_list_folders()
-refresh_folder('BIDW_RMS')
-refresh_run_stat()
+Repo = d2()
+Repo['dev'] = create_repo('dev', engines.dev)
+Repo['qa'] = create_repo('qa', engines.qa)
+Repo['prd'] = create_repo('prd', engines.prd)
 
+# RepoDev = create_repo(engines.dev)
+# refresh_folder('BIDW_RMS')
 
 @application.route('/objects', methods=['GET'])
 def objects():
@@ -86,7 +77,7 @@ def objects():
 @application.route('/poll_mon_data', methods=['GET'])
 def poll_mon_data():
   record = request.values.to_dict()
-  if record['id'] == 'dev':
+  if record['env'] == 'dev':
     refresh_run_stat()
   return "OK Polling"
 
@@ -127,19 +118,10 @@ def get_content(object):
 def test():
  return render_template('test.html')
 
-# @application.route('/switch', methods=['GET'])
-# def monitor_switch():
-#   record = request.values.to_dict()
-#   if record['status'] == 'true':
-#     RepoDev.keep_refreshing = True
-#     keep_refreshing_run_stat()
-#   else:
-#     RepoDev.keep_refreshing = False
-  
-#   return 'OK! Switched ' + record['status']
 
 @application.route('/<object>.json', methods=['GET','POST'])
 def get_data(object):
+  data = []
   if object == 'test_data1':
     data = [
       {
@@ -166,40 +148,40 @@ def get_data(object):
       dict(
         text='DEV',
         state='closed',
-        children = infa_objects.root,
+        children = RepoDev.objects.root,
       ),
       dict(
         text='QA',
         state='closed',
-        children = infa_objects.root,
+        children = RepoDev.objects.root,
       ),
       dict(
         text='PRD',
         state='closed',
-        children = infa_objects.root,
+        children = RepoDev.objects.root,
       ),
     ]
 
   if object == 'object_tree_search':
     q_text = ''
-    for folder_name in infa_objects.folders:
-      infa_objects.add_folder(folder_name, q_text=q_text)
+    for folder_name in RepoDev.objects.folders:
+      RepoDev.objects.add_folder(folder_name, q_text=q_text)
     
     data = [
       dict(
         text='DEV',
         state='closed',
-        children = infa_objects.root,
+        children = RepoDev.objects.root,
       ),
       dict(
         text='QA',
         state='closed',
-        children = infa_objects.root,
+        children = RepoDev.objects.root,
       ),
       dict(
         text='PRD',
         state='closed',
-        children = infa_objects.root,
+        children = RepoDev.objects.root,
       ),
     ]
 
@@ -256,10 +238,10 @@ def subscribe():
 
 
 
-if __name__ == '__main__':
+# if __name__ == '__main__':
   
-  application.debug = True
-  server = WSGIServer(("", 5000), application)
-  server.serve_forever()
+#   application.debug = True
+#   server = WSGIServer(("", 5000), application)
+#   server.serve_forever()
 
   # application.run(debug=True)

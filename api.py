@@ -21,21 +21,30 @@ from infa_classes import (
 
 creds = parse_yaml(dir_path + '/creds.yml')
 cred = d2(creds['INFA_DEV'])
-# cred = d2(creds['INFA_QA'])
+cred = d2(creds['INFA_QA'])
 
-if cred.type == 'oracle':
-  dnsStr = makedsn(cred.host, cred.port, service_name=cred.instance)
-  # dnsStr = cx_Oracle.makedsn(cred.host,cred.port,sid=cred.instance)
-  # conn_str = 'oracle+cx_oracle://{user}:{password}@{host}:{port}/{instance}'
-  conn_str = 'oracle+cx_oracle://{user}:{password}@' + dnsStr
-elif cred.type == 'mssql':
-  conn_str = 'mssql+pymssql://{user}:{password}@{host}:{port}/{instance}'
+def create_engine(cred):
+  cred = d2(cred)
+  if cred.type == 'oracle':
+    dnsStr = makedsn(cred.host, cred.port, service_name=cred.instance)
+    # dnsStr = cx_Oracle.makedsn(cred.host,cred.port,sid=cred.instance)
+    # conn_str = 'oracle+cx_oracle://{user}:{password}@{host}:{port}/{instance}'
+    conn_str = 'oracle+cx_oracle://{user}:{password}@' + dnsStr
+  elif cred.type == 'mssql':
+    conn_str = 'mssql+pymssql://{user}:{password}@{host}:{port}/{instance}'
 
-engine = sqlalchemy.create_engine(conn_str.format(**cred), pool_size=5)
+  return sqlalchemy.create_engine(conn_str.format(**cred), pool_size=10)
 
+engines = d2(
+  dev=create_engine(creds['INFA_DEV']),
+  qa=create_engine(creds['INFA_QA']),
+  prd=create_engine(creds['INFA_PRD']),
+)
 
 if __name__ == '__main__':
-  Repo = Infa_Rep(engine)
+  
+  
+  Repo = Infa_Rep(engines.dev)
   Repo.get_list_folders()
 
   # folder = Repo.folders['ARIBA']

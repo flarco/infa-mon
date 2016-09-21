@@ -13,6 +13,7 @@ from helpers import (
   d2,
   dir_path,
   split_list,
+  run_async,
 )
 
 from sql import(
@@ -85,6 +86,13 @@ class Folder:
       'sessions',
       'workflows',
     ]
+  
+  def get_objects(self):
+    self.get_list_sources()
+    self.get_list_targets()
+    self.get_list_mappings()
+    self.get_list_sessions()
+    self.get_list_workflows()
 
   def get_list_sources(self):
     """
@@ -254,20 +262,26 @@ class Folder:
 class Infa_Rep:
   "A general class abstracting the objects in the Informatica repository database."
 
-  def __init__(self, engine=None):
+  def __init__(self, name, engine=None):
     global db
     db = engine.connect()
-
+    self.name = name
+    self.objects = eUI_FolderTreeInfaObjects()
     self.folders = d2()
     self.last_wf_run_id = None
     self.run_stats_data = OrderedDict()
     self.keep_refreshing = False
+  
+  @run_async
+  def get_folder_objects(self, folder_name):
+    self.folders[folder_name].get_objects()
 
+  @run_async
   def get_list_folders(self):
     """
     Obatin the list of folders in a repository.
     """
-    log("Getting list of folders.")
+    log(self.name + " > Getting list of folders.")
     fields, sql = sql_oracle.list_folder
     result = db.execute(sql)
 
@@ -275,17 +289,18 @@ class Infa_Rep:
       rec = get_rec(row, fields)
       self.folders[rec.folder_name] = Folder(**rec)
   
+  @run_async
   def get_latest_run_stats(self):
     self.last_run_stats_refresh = datetime.datetime.now()
     if not self.last_wf_run_id:
-      log("Getting latest run stats [full].")
+      log(self.name + " > Getting latest run stats [full].")
       fields, sql = sql_oracle.log_session_run_full
       result = db.execute(
         sql,
         d(limit=1000)
       )
     else:
-      log("Getting latest run stats [recent >= {s}].".format(
+      log(self.name + " > Getting latest run stats [recent >= {s}].".format(
           s=self.last_wf_run_id
         )
       )

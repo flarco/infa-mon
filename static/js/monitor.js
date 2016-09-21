@@ -43,11 +43,11 @@ $(function() {
 
 
 var funcs = {
-  refreshMonData: function() {
-    $('#table_dev').datagrid('reload');
+  refreshMonData: function(env) {
+    $('#table_'+env).datagrid('reload');
   },
-  pollMonData: function() {
-    $.get("poll_mon_data?id=dev", function(data) {
+  pollMonData: function(env) {
+    $.get("poll_mon_data?env="+env, function(data) {
       console.log((new Date()).toISOString() + ' -- ', data);
     });
   },
@@ -77,136 +77,120 @@ initSwitch('switch_dev');
 initSwitch('switch_qa');
 initSwitch('switch_prd');
 
-function getSelectedRow(){
-    var row = $('#table_dev').datagrid('getSelected');
-    if (row){
-        $.messager.alert('Error Message', row.error);
-    }
-}
-
-var table_dev = $('#table_dev').datagrid({
-  url: 'monitor_data_dev.json',
-  singleSelect:true,
-  pageSize:20,
-  onDblClickRow: function(index,row){
-		getSelectedRow();
-	},
-  method:'get',
-  view: detailview,
-  detailFormatter:function(index,row){
-      return '<div class="ddv" style="padding:5px 0"></div>';
-  },
-  onExpandRow: function(index,row){
-      var ddv = $(this).datagrid('getRowDetail',index).find('div.ddv');
-      ddv.panel({
-          height:80,
-          border:false,
-          cache:false,
-          // href:'datagrid21_getdetail.php?itemid='+row.itemid,
-          href:'test_content.html?itemid='+row.itemid,
-          onLoad:function(){
-              $('#dg').datagrid('fixDetailRowHeight',index);
-          }
-      });
-      $('#dg').datagrid('fixDetailRowHeight',index);
-  },
-  columns: [
-    [{
-      field: 'folder',
-      title: 'FOLDER',
-      sortable: true,
-      width: 150
-    }, {
-      field: 'workflow',
-      title: 'WORKFLOW',
-      sortable: true,
-      width: 200
-    }, {
-      field: 'session',
-      title: 'SESSION',
-      sortable: true,
-      width: 200
-    }, {
-      field: 'mapping',
-      title: 'MAPPING',
-      sortable: true,
-      width: 200
-    }, {
-      field: 'start',
-      title: 'START',
-      sortable: true,
-      width: 138
-    }, {
-      field: 'duration',
-      title: 'DUR.',
-      width: 40
-    }, {
-      field: 'success',
-      title: 'Success',
-      width: 75,
-      styler: function(value, row, index) {
-        if (value == 'No') {
-          return 'background-color:#ffee00;color:red;';
-        }
-        if (value == 'Running') {
-          return 'background-color:#ccffff;';
-        }
+function createTable(env){
+  var id_ = '#table_' + env;
+  var table_ = $(id_).datagrid({
+    url: 'monitor_data_'+env+'.json',
+    singleSelect:true,
+    pageSize:20,
+    onDblClickRow: function(index,row){
+      var row = $(id_).datagrid('getSelected');
+      if (row){
+          $.messager.alert('Error Message', row.error);
       }
-    }, {
-      field: 'error',
-      title: 'ERROR',
-      width: 250
-    } ]
-  ]
-});
+    },
+    method:'get',
+    view: detailview,
+    detailFormatter:function(index,row){
+        return '<div class="ddv" style="padding:5px 0"></div>';
+    },
+    onExpandRow: function(index,row){
+        var ddv = $(this).datagrid('getRowDetail',index).find('div.ddv');
+        ddv.panel({
+            height:80,
+            border:false,
+            cache:false,
+            // href:'datagrid21_getdetail.php?itemid='+row.itemid,
+            href:'test_content.html?itemid='+row.itemid,
+            onLoad:function(){
+                $('#dg').datagrid('fixDetailRowHeight',index);
+            }
+        });
+        $('#dg').datagrid('fixDetailRowHeight',index);
+    },
+    columns: [
+      [{
+        field: 'folder',
+        title: 'FOLDER',
+        sortable: true,
+        width: 150
+      }, {
+        field: 'workflow',
+        title: 'WORKFLOW',
+        sortable: true,
+        width: 200
+      }, {
+        field: 'session',
+        title: 'SESSION',
+        sortable: true,
+        width: 200
+      }, {
+        field: 'mapping',
+        title: 'MAPPING',
+        sortable: true,
+        width: 200
+      }, {
+        field: 'start',
+        title: 'START',
+        sortable: true,
+        width: 138
+      }, {
+        field: 'duration',
+        title: 'DUR.',
+        width: 40
+      }, {
+        field: 'success',
+        title: 'Success',
+        width: 75,
+        styler: function(value, row, index) {
+          if (value == 'No') {
+            return 'background-color:#ffee00;color:red;';
+          }
+          if (value == 'Running') {
+            return 'background-color:#ccffff;';
+          }
+        }
+      }, {
+        field: 'error',
+        title: 'ERROR',
+        width: 250
+      } ]
+    ]
+  });
 
-table_dev.datagrid('enableFilter', [{
-                field:'success',
-                type:'combobox',
-                options:{
-                    panelHeight:'auto',
-                    data:[{value:'',text:'All'},{value:'Running',text:'Running'},{value:'Yes',text:'Yes'},{value:'No',text:'No'}],
-                    onChange:function(value){
-                        if (value == ''){
-                            table_dev.datagrid('removeFilterRule', 'success');
-                        } else {
-                            table_dev.datagrid('addFilterRule', {
-                                field: 'success',
-                                op: 'equal',
-                                value: value
-                            });
-                        }
-                        table_dev.datagrid('doFilter');
-                    }
-                }
-            }]);
-// table_dev.datagrid({
-//                 view: detailview,
-//                 detailFormatter:function(index,row){
-//                     return '<div class="ddv" style="padding:5px 0"></div>';
-//                 },
-//                 onExpandRow: function(index,row){
-//                     var ddv = $(this).datagrid('getRowDetail',index).find('div.ddv');
-//                     ddv.panel({
-//                         height:80,
-//                         border:false,
-//                         cache:false,
-//                         // href:'datagrid21_getdetail.php?itemid='+row.itemid,
-//                         href:'test_content.html?itemid='+row.itemid,
-//                         onLoad:function(){
-//                             $('#dg').datagrid('fixDetailRowHeight',index);
-//                         }
-//                     });
-//                     $('#dg').datagrid('fixDetailRowHeight',index);
-//                 }
-//             });
+  table_.datagrid('enableFilter', [{
+                  field:'success',
+                  type:'combobox',
+                  options:{
+                      panelHeight:'auto',
+                      data:[{value:'',text:'All'},{value:'Running',text:'Running'},{value:'Yes',text:'Yes'},{value:'No',text:'No'}],
+                      onChange:function(value){
+                          if (value == ''){
+                              table_.datagrid('removeFilterRule', 'success');
+                          } else {
+                              table_.datagrid('addFilterRule', {
+                                  field: 'success',
+                                  op: 'equal',
+                                  value: value
+                              });
+                          }
+                          table_.datagrid('doFilter');
+                      }
+                  }
+              }]);
+  return table_;
+};
+
+createTable('dev');
+createTable('qa');
+createTable('prd');
 
 
 function monitor_poll_data()
 {
     if (localStorage.getItem('switch_dev') == 'true') {
-      funcs['pollMonData']();
-      funcs['refreshMonData']();
+      funcs['pollMonData']('dev');
+      funcs['refreshMonData']('dev');
     };
     setTimeout(monitor_poll_data, 10000);
 }
