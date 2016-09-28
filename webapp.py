@@ -38,12 +38,8 @@ def push_event(text):
 
 
 @run_async
-def refresh_run_stat():
-  RepoDev.get_latest_run_stats()
-
-
-def stop_refreshes():
-  RepoDev.keep_refreshing =False
+def refresh_run_stat(env):
+  Repo[env].get_latest_run_stats()
 
 
 
@@ -64,8 +60,8 @@ def create_repo(name, engine):
 
 Repo = d2()
 Repo['dev'] = create_repo('dev', engines.dev)
-Repo['qa'] = create_repo('qa', engines.qa)
-Repo['prd'] = create_repo('prd', engines.prd)
+# Repo['qa'] = create_repo('qa', engines.qa)
+# Repo['prd'] = create_repo('prd', engines.prd)
 
 # RepoDev = create_repo(engines.dev)
 # refresh_folder('BIDW_RMS')
@@ -77,9 +73,8 @@ def objects():
 @application.route('/poll_mon_data', methods=['GET'])
 def poll_mon_data():
   record = request.values.to_dict()
-  if record['env'] == 'dev':
-    refresh_run_stat()
-  return "OK Polling"
+  refresh_run_stat(record['env'])
+  return "OK Polling " + record['env']
 
 
 @application.route('/monitor', methods=['GET'])
@@ -110,7 +105,7 @@ def get_content(object):
 
   if object == 'run_stats_detail':
     combo = record['combo']
-    content = content.format(error_message=RepoDev.run_stats_data[combo].error)
+    content = content.format(error_message=Repo[env].run_stats_data[combo].error)
   
   return content
 
@@ -122,6 +117,9 @@ def test():
 @application.route('/<object>.json', methods=['GET','POST'])
 def get_data(object):
   data = []
+  record = request.values.to_dict()
+  env = record['env']
+
   if object == 'test_data1':
     data = [
       {
@@ -148,17 +146,17 @@ def get_data(object):
       dict(
         text='DEV',
         state='closed',
-        children = RepoDev.objects.root,
+        children = Repo[env].objects.root,
       ),
       dict(
         text='QA',
         state='closed',
-        children = RepoDev.objects.root,
+        children = Repo[env].objects.root,
       ),
       dict(
         text='PRD',
         state='closed',
-        children = RepoDev.objects.root,
+        children = Repo[env].objects.root,
       ),
     ]
 
@@ -185,10 +183,8 @@ def get_data(object):
       ),
     ]
 
-  if object == 'monitor_data_dev':
-    # if RepoDev.last_run_stats_refresh < datetime.datetime.now().now() - datetime.timedelta(seconds=20):
-    #   RepoDev.get_latest_run_stats()
-    data = [RepoDev.run_stats_data[i] for i in sorted(RepoDev.run_stats_data, reverse=True)]
+  if object == 'monitor_data':
+    data = [Repo[env].run_stats_data[i] for i in sorted(Repo[env].run_stats_data, reverse=True)]
       
     
   return json.dumps(data)
@@ -196,6 +192,7 @@ def get_data(object):
 @application.route("/refresh")
 def refresh1():
   RepoDev.get_list_folders()
+  env = request.values.to_dict()['env']
   folders = [
     'SOR_BLUEBOX',
     'BIDW_RMS',
@@ -203,9 +200,9 @@ def refresh1():
     'ARIBA',
   ]
 
-  for i, folder_name in enumerate(sorted(RepoDev.folders)):
+  for i, folder_name in enumerate(sorted(Repo[env].folders)):
     if not folder_name in folders: continue
-    refresh_folder(folder_name)
+    refresh_folder(env, folder_name)
   
   return "OK"
 
@@ -238,10 +235,10 @@ def subscribe():
 
 
 
-# if __name__ == '__main__':
+if __name__ == '__main__':
   
-#   application.debug = True
-#   server = WSGIServer(("", 5000), application)
-#   server.serve_forever()
+  application.debug = True
+  server = WSGIServer(("", 5000), application)
+  server.serve_forever()
 
   # application.run(debug=True)

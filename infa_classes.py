@@ -268,6 +268,8 @@ class Infa_Rep:
     self.name = name
     self.objects = eUI_FolderTreeInfaObjects()
     self.folders = d2()
+    self.connections = d2()
+    self.connections_id = d2()
     self.last_wf_run_id = None
     self.run_stats_data = OrderedDict()
     self.keep_refreshing = False
@@ -275,6 +277,22 @@ class Infa_Rep:
   @run_async
   def get_folder_objects(self, folder_name):
     self.folders[folder_name].get_objects()
+
+  def get_connections(self):
+    """
+    Obatin the list of connections in a repository.
+    """
+    log(self.name + " > Getting list of connections.")
+
+    data_dict = sql_oracle.list_connections
+    fields = {f.lower():f for f in data_dict.fields}
+    sql = text('''select * from {table}'''.format(table=data_dict['table'])
+    result = db.execute(sql)
+
+    Record = namedtuple('Connection', data_dict.fields)
+    for row in result:
+      rec = get_rec(row, fields)
+      self.connections[rec.object_id] = self.connections[rec.object_name] = Record(**rec)
 
   @run_async
   def get_list_folders(self):
@@ -297,7 +315,7 @@ class Infa_Rep:
       fields, sql = sql_oracle.log_session_run_full
       result = db.execute(
         sql,
-        d(limit=1000)
+        d(limit=100)
       )
     else:
       log(self.name + " > Getting latest run stats [recent >= {s}].".format(

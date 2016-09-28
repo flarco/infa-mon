@@ -80,7 +80,7 @@ initSwitch('switch_prd');
 function createTable(env){
   var id_ = '#table_' + env;
   var table_ = $(id_).datagrid({
-    url: 'monitor_data_'+env+'.json',
+    url: 'monitor_data.json?env='+env,
     singleSelect:true,
     pageSize:20,
     onDblClickRow: function(index,row){
@@ -101,7 +101,7 @@ function createTable(env){
             border:false,
             cache:false,
             // href:'datagrid21_getdetail.php?itemid='+row.itemid,
-            href:'test_content.html?itemid='+row.itemid,
+            href:'test_content.html?itemid='+row.itemid + '&env='+env,
             onLoad:function(){
                 $('#dg').datagrid('fixDetailRowHeight',index);
             }
@@ -191,6 +191,14 @@ function monitor_poll_data()
     if (localStorage.getItem('switch_dev') == 'true') {
       funcs['pollMonData']('dev');
       funcs['refreshMonData']('dev');
+    };
+    if (localStorage.getItem('switch_qa') == 'true') {
+      funcs['pollMonData']('qa');
+      funcs['refreshMonData']('qa');
+    };
+    if (localStorage.getItem('switch_prd') == 'true') {
+      funcs['pollMonData']('prd');
+      funcs['refreshMonData']('prd');
     };
     setTimeout(monitor_poll_data, 10000);
 }
