@@ -15,7 +15,9 @@ from cx_Oracle import (
 )
 
 from infa_classes import (
-  Infa_Rep
+  Infa_Rep,
+  log,
+  compare_repo_folder,
 )
 
 
@@ -42,27 +44,40 @@ engines = d2(
 )
 
 if __name__ == '__main__':
+  log('Start.')
   
-  
-  Repo = Infa_Rep(engines.dev)
-  Repo.get_list_folders()
+  repos = dict(
+    DEV=Infa_Rep('DEV', engines.dev),
+    QA=Infa_Rep('QA', engines.qa),
+    PRD=Infa_Rep('PRD', engines.prd),
+  )
 
-  # folder = Repo.folders['ARIBA']
   folders = [
     # 'SOR_BLUEBOX',
-    'BIDW_RMS',
-    'BIDW_PROCUREMENT',
-    'ARIBA',
+    # 'FUSION',
+    # 'CDE',
+    # 'BIDW_RMS',
+    # 'BIDW_PROCUREMENT',
+    'CRM_ANALYTICS',
+    # 'ARIBA',
   ]
 
   for i, folder_name in enumerate(folders):
-    folder = Repo.folders[folder_name]
-    folder.get_list_sources()
-    folder.get_list_targets()
-    folder.get_list_mappings()
-    folder.get_list_sessions()
-    folder.get_list_workflows()
-    # if i == 0:
-    #   folder.generate_workflow_report_1()
-    # else:
-    #   folder.generate_workflow_report_1(append=True)
+    # folder = Repo.folders[folder_name]
+    # folder.get_objects()
+    # folder.get_list_fields()
+  
+    # folder_name = 'CRM_ANALYTICS'
+
+
+    # Get folders
+    tasks = [repo.get_list_folders() for repo in repos.values()]
+    for t in tasks: t.join()
+    
+    # Get Objects
+    tasks = [repo.get_folder_objects(folder_name, get_fields=True) for repo in repos.values()]
+    for t in tasks: t.join()
+
+  compare_repo_folder(repos, folders)
+
+  log('End.')

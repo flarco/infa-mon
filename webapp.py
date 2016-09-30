@@ -60,8 +60,8 @@ def create_repo(name, engine):
 
 Repo = d2()
 Repo['dev'] = create_repo('dev', engines.dev)
-# Repo['qa'] = create_repo('qa', engines.qa)
-# Repo['prd'] = create_repo('prd', engines.prd)
+Repo['qa'] = create_repo('qa', engines.qa)
+Repo['prd'] = create_repo('prd', engines.prd)
 
 # RepoDev = create_repo(engines.dev)
 # refresh_folder('BIDW_RMS')

@@ -55,6 +55,12 @@ def split_list(iterable, size):
     yield item
     item = list(itertools.islice(it, size))
 
+def export_data_to_csv(output_path, headers, data_records):
+  q = lambda x: '"' + x.replace('"','""') + '"'
+  with open(output_path, 'w') as out_file:
+    out_file.write(','.join(headers) + '\n')
+    for rec in data_records:
+      out_file.write(','.join([q(rec[h]) for h in headers]) + '\n')
 
 class ServerSentEvent():
   "SSE 'protocol' is described here: http://mzl.la/UPFyxY"

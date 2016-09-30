@@ -1,4 +1,4 @@
-import logging, datetime
+import logging, datetime, os
 
 logger = logging.getLogger()
 handler = logging.StreamHandler()
@@ -14,6 +14,7 @@ from helpers import (
   dir_path,
   split_list,
   run_async,
+  export_data_to_csv,
 )
 
 from sql import(
@@ -25,7 +26,8 @@ from collections import (
   namedtuple
 )
 
-get_rec = lambda r,f: d2({k:r[v.lower()] for k,v in f.items()})
+DIR = os.path.dirname(os.path.realpath(__file__))
+get_rec = lambda r,f: d2({k:r[v.lower()] for k,v in f.items()}) if len(f) > 0 else d2(r)
 
 def log(text):
   "Print / Log text or status"
@@ -64,16 +66,20 @@ class Folder:
 
   def __init__(self, *args, **kwargs):
     self.name = ''
+    self.repo = ''
     for key,val in kwargs.items():
       strip_prefix = lambda k: k.replace(self.__class__.__name__.lower() + "_", '')
       setattr(self, strip_prefix(key), val)
     
     self.sources = d2()
+    self.sources_fields = d2()
     self.sources_id = d2()
     self.targets = d2()
-    self.targets_id = d2()
+    self.targets_fields = d2()
+    self.targets_id = {}
     self.mappings = d2()
     self.mappings_id = d2()
+    self.mappings_transf_fields = d2()
     self.sessions = d2()
     self.sessions_id = d2()
     self.workflows = d2()
@@ -98,45 +104,91 @@ class Folder:
     """
     Obtain the list of sources, ids in a folder.
     """
-    log("Getting sources for {0}.".format(self.name))
+    log(self.repo + " > Getting sources for {0}.".format(self.name))
     fields, sql = sql_oracle.list_source
-    result = db.execute(sql, d(folder_id=self.id))
+    result = self.db.execute(sql, d(folder_id=self.id))
     data = [get_rec(row, fields) for row in result]
 
-    self.sources = d2({rec.source_name: rec for rec in data})
-    self.sources_id = d2({rec.source_id: rec.source_name for rec in data})
+    for rec in data:
+      self.sources_id[rec.source_id] = self.sources[rec.source_name] = rec
+
+  def get_list_fields(self):
+    """
+    Obtain the list of fields for each transformation/source/target in all mappings in folder.
+    """
+    log(self.repo + " > Getting transformation fields for {0}.".format(self.name))
+    fields, sql = sql_oracle.list_tranformation_fields
+    result = self.db.execute(sql, d(folder_id=self.id))
+    data_trans = [get_rec(row, fields) for row in result]
+
+    log(self.repo + " > Getting source/target fields for {0}.".format(self.name))
+    fields, sql = sql_oracle.list_source_target_fields
+    result = self.db.execute(sql, d(folder_id=self.id))
+    data_src_tgt = [get_rec(row, fields) for row in result]
+
+    if len(self.mappings_id) == 0: self.get_list_mappings()
+    if len(self.sources_id) == 0: self.get_list_sources()
+    if len(self.targets_id) == 0: self.get_list_targets()
+
+    for rec in data_trans:
+      rec['TYPE_'] = ' | '.join([
+        rec['datatype'],
+        'S:' + str(rec['scale']) if rec['scale'] else 'S:' + 'null',
+        'P:' + str(rec['precision']) if rec['precision'] else 'P:' + 'null',
+        'E:' + str(rec['expression']) if rec['expression'] else 'E:' + 'null',
+      ])
+
+      self.mappings_transf_fields[rec.widget_field_id] = rec
+
+    for rec in data_src_tgt:
+      rec['TYPE_'] = ' | '.join([
+        rec['field_datatype'].replace('nvarchar2','varchar2').replace('nchar','char'),
+        'S:' + str(rec['field_scale']) if rec['field_scale'] else 'S:' + 'null',
+        'P:' + str(rec['field_precision']) if rec['field_precision'] else 'P:' + 'null',
+        'K:' + str(rec['field_key_type']) if rec['field_key_type'] else 'K:' + 'null',
+        'N:' + str(rec['field_nulltype']) if rec['field_nulltype'] else 'N:' + 'null',
+      ])
+
+      if rec.type == 'SOURCE':
+        self.sources_fields[rec.field_id] = rec
+      else:
+        self.targets_fields[rec.field_id] = rec
+
 
   def get_list_targets(self):
     """
     Obtain the list of targets, ids in a folder.
     """
-    log("Getting targets for {0}.".format(self.name))
+    log(self.repo + " > Getting targets for {0}.".format(self.name))
     fields, sql = sql_oracle.list_target
-    result = db.execute(sql, d(folder_id=self.id))
+    result = self.db.execute(sql, d(folder_id=self.id))
     data = [get_rec(row, fields) for row in result]
-
-    self.targets = d2({rec.target_name: rec for rec in data})
-    self.targets_id = d2({rec.target_id: rec.target_name for rec in data})
+    
+    for rec in data:
+      self.targets_id[rec.target_id] = self.targets[rec.target_name] = rec
+    
+    # log(str(list(self.targets_id.keys())))
 
   def get_list_mappings(self):
     """
     Obtain the list of mappings, ids in a folder.
     """
-    log("Getting mappings for {0}.".format(self.name))
+    log(self.repo + " > Getting mappings for {0}.".format(self.name))
     fields, sql = sql_oracle.list_mapping
-    result = db.execute(sql, d(folder_id=self.id))
+    result = self.db.execute(sql, d(folder_id=self.id))
     data = [get_rec(row, fields) for row in result]
 
-    self.mappings = d2({rec.mapping_name: rec for rec in data})
-    self.mappings_id = d2({rec.mapping_id: rec.mapping_name for rec in data})
+    for rec in data:
+      self.mappings_id[rec.mapping_id] = self.mappings[rec.mapping_name] = rec
+
 
   def get_list_workflows(self):
     """
     Obtain the list of workflows, ids in a folder.
     """
-    log("Getting workflows for {0}.".format(self.name))
+    log(self.repo + " > Getting workflows for {0}.".format(self.name))
     fields, sql = sql_oracle.list_workflow
-    result = db.execute(sql, d(folder_id=self.id))
+    result = self.db.execute(sql, d(folder_id=self.id))
     
     for row in result:
       rec = get_rec(row, fields)
@@ -144,7 +196,7 @@ class Folder:
       
     
     fields, sql = sql_oracle.list_workflow_sessions
-    result = db.execute(sql, d(folder_id=self.id))
+    result = self.db.execute(sql, d(folder_id=self.id))
 
     for row in result:
       session = get_rec(row, fields)
@@ -156,9 +208,9 @@ class Folder:
     """
     Obtain the list of sessions, ids in a folder.
     """
-    log("Getting sessions for {0}.".format(self.name))
+    log(self.repo + " > Getting sessions for {0}.".format(self.name))
     fields, sql = sql_oracle.list_session
-    result = db.execute(sql, d(folder_id=self.id))
+    result = self.db.execute(sql, d(folder_id=self.id))
     
     for row in result:
       rec = get_rec(row, fields)
@@ -167,8 +219,8 @@ class Folder:
     # Obtain connections
     for ids in split_list(self.sessions_id.keys(), 499):
       fields, sql = sql_oracle.list_session_conns
-      # result = db.execute(sql, session_id=str(tuple(self.sessions_id.keys())))
-      result = db.execute(sql.format(session_id=str(tuple(ids))))
+      # result = self.db.execute(sql, session_id=str(tuple(self.sessions_id.keys())))
+      result = self.db.execute(sql.format(session_id=str(tuple(ids))))
       
       for row in result:
         rec = get_rec(row, fields)
@@ -203,7 +255,7 @@ class Folder:
           FOLDER=self.name,
           WORKFLOW_NAME=workflow.name,
           SESSION_NAME= session.name,
-          MAPPING_NAME= self.mappings_id[session.mapping_id],
+          MAPPING_NAME= self.mappings_id[session.mapping_id].name,
           SOURCE_CONNECTION=source_connections,
           SOURCE='',
           TARGET_CONNECTION=target_connections,
@@ -263,11 +315,10 @@ class Infa_Rep:
   "A general class abstracting the objects in the Informatica repository database."
 
   def __init__(self, name, engine=None):
-    global db
-    db = engine.connect()
+    self.db = engine.connect()
     self.name = name
     self.objects = eUI_FolderTreeInfaObjects()
-    self.folders = d2()
+    self.folders = {}
     self.connections = d2()
     self.connections_id = d2()
     self.last_wf_run_id = None
@@ -275,8 +326,10 @@ class Infa_Rep:
     self.keep_refreshing = False
   
   @run_async
-  def get_folder_objects(self, folder_name):
+  def get_folder_objects(self, folder_name, get_fields=False):
+    log(self.name + " > Getting list of objects.")
     self.folders[folder_name].get_objects()
+    if get_fields: self.folders[folder_name].get_list_fields()
 
   def get_connections(self):
     """
@@ -286,8 +339,8 @@ class Infa_Rep:
 
     data_dict = sql_oracle.list_connections
     fields = {f.lower():f for f in data_dict.fields}
-    sql = text('''select * from {table}'''.format(table=data_dict['table'])
-    result = db.execute(sql)
+    sql = text('''select * from {table}'''.format(table=data_dict['table']))
+    result = self.db.execute(sql)
 
     Record = namedtuple('Connection', data_dict.fields)
     for row in result:
@@ -301,11 +354,11 @@ class Infa_Rep:
     """
     log(self.name + " > Getting list of folders.")
     fields, sql = sql_oracle.list_folder
-    result = db.execute(sql)
+    result = self.db.execute(sql)
 
     for row in result:
       rec = get_rec(row, fields)
-      self.folders[rec.folder_name] = Folder(**rec)
+      self.folders[rec.folder_name] = Folder(repo=self.name, db=self.db, **rec)
   
   @run_async
   def get_latest_run_stats(self):
@@ -313,9 +366,9 @@ class Infa_Rep:
     if not self.last_wf_run_id:
       log(self.name + " > Getting latest run stats [full].")
       fields, sql = sql_oracle.log_session_run_full
-      result = db.execute(
+      result = self.db.execute(
         sql,
-        d(limit=100)
+        d(limit=500)
       )
     else:
       log(self.name + " > Getting latest run stats [recent >= {s}].".format(
@@ -323,7 +376,7 @@ class Infa_Rep:
         )
       )
       fields, sql = sql_oracle.log_session_run_recent
-      result = db.execute(
+      result = self.db.execute(
         sql,
         d(last_wf_run_id=self.last_wf_run_id)
       )
@@ -427,3 +480,119 @@ class eUI_FolderTreeInfaObjects:
     # self.root.append(child)
     self.folders[folder.name] = child
     self.root = [self.folders[f] for f in sorted(self.folders)]
+  
+def compare_repo_folder(repos, folder_names):
+  log(" > Creating Compare Report.")
+  headers = "FOLDER OBJECT_TYPE OBJECT_NAME DEV QA PRD DELTA DEV_TYPE QA_TYPE PRD_TYPE".split()
+  report_data_lines = OrderedDict()
+
+  for env, repo in repos.items():
+    for folder_name in folder_names:
+      folder = repo.folders[folder_name]
+      
+      for step_val in [
+        ('WORKFLOW', folder.workflows),
+        ('SESSION', folder.sessions),
+        ('MAPPING', folder.mappings),
+        ('SOURCE', folder.sources),
+        ('TARGET', folder.targets),
+      ]:
+        obj_type, obj_list = step_val
+        for obj_name in sorted(obj_list):
+          combo = (folder_name, obj_type, obj_name)
+          report_data_lines[combo] = report_data_lines.get(
+            combo,
+            dict(
+              DEV='No',
+              QA='No',
+              PRD='No',
+              DELTA='No',
+              DEV_TYPE='',
+              QA_TYPE='',
+              PRD_TYPE='',
+            )
+          )
+          id_field_name = obj_type.lower() + '_id'
+          try:report_data_lines[combo][env] = str(obj_list[obj_name][id_field_name])
+          except: report_data_lines[combo][env] = str(obj_list[obj_name].id)
+      
+      for step_val in [
+        ('SOURCE_FIELD', folder.sources_fields),
+        ('TARGET_FIELD', folder.targets_fields),
+        ('TRANSF_FIELD', folder.mappings_transf_fields),
+      ]:
+        obj_type, obj_list = step_val
+        for obj_id in sorted(obj_list):
+          obj_name = obj_list[obj_id]['combo2']
+          combo = (folder_name, obj_type, obj_name)
+          report_data_lines[combo] = report_data_lines.get(
+            combo,
+            dict(
+              DEV='No',
+              QA='No',
+              PRD='No',
+              DELTA='No',
+              DEV_TYPE='missing',
+              QA_TYPE='missing',
+              PRD_TYPE='missing',
+            )
+          )
+          report_data_lines[combo][env] = str(obj_id)
+          report_data_lines[combo][env+'_TYPE'] = obj_list[obj_id]['TYPE_']
+  
+  
+  list_mapping = {
+    'SOURCE_FIELD': folder.sources_fields,
+    'TARGET_FIELD': folder.targets_fields,
+    'TRANSF_FIELD': folder.mappings_transf_fields
+  }
+
+  data_rec = []
+  for combo,val in report_data_lines.items():
+    FOLDER, OBJECT_TYPE, OBJECT_NAME = combo
+    
+    if OBJECT_TYPE in ('SOURCE_FIELD','TARGET_FIELD','TRANSF_FIELD'):
+      if val['DEV_TYPE'] != val['QA_TYPE'] or \
+      val['QA_TYPE'] != val['PRD_TYPE']  or \
+      val['DEV_TYPE'] != val['PRD_TYPE']:
+        val['DELTA'] = 'Yes'
+    
+    if (val['DEV'] != 'No' and val['QA'] == 'No') or \
+    (val['DEV'] != 'No' and val['PRD'] == 'No') or \
+    (val['QA'] != 'No' and val['DEV'] == 'No') or \
+    (val['QA'] != 'No' and val['PRD'] == 'No') or \
+    (val['PRD'] != 'No' and val['DEV'] == 'No') or \
+    (val['PRD'] != 'No' and val['QA'] == 'No'):
+      val['DELTA'] = 'Yes'
+
+    rec = dict(
+      FOLDER=FOLDER,
+      OBJECT_TYPE=OBJECT_TYPE,
+      OBJECT_NAME=OBJECT_NAME,
+      DEV='Yes' if val['DEV'] != 'No' else 'No',
+      QA='Yes' if val['QA'] != 'No' else 'No',
+      PRD='Yes' if val['PRD'] != 'No' else 'No',
+      DELTA=str(val['DELTA']),
+      DEV_ID=val['DEV'],
+      QA_ID=val['QA'],
+      PRD_ID=val['PRD'],
+      DEV_TYPE=val['DEV_TYPE'],
+      QA_TYPE=val['QA_TYPE'],
+      PRD_TYPE=val['PRD_TYPE'],
+    )
+    data_rec.append(rec)
+
+  suff = datetime.datetime.now().strftime('%Y%m%d_%H%M')
+  output_path = DIR + '/infa_compare_objects_{suff}.csv'.format(suff=suff)
+  export_data_to_csv(output_path, headers, data_rec)
+
+  # Get workflows
+
+  # Get sessions
+
+  # Get Mappings
+
+  # Compare list of Workflows
+  # Compare list of Sessions
+  # Compare list of Mappings
+  # For each mapping compare the field types
