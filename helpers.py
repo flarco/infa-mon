@@ -1,7 +1,5 @@
 import os, yaml, itertools, threading
 
-from celery import Celery
-
 from threading import Thread, Lock
 from functools import wraps
 
@@ -24,6 +22,8 @@ def parse_yaml(file_path):
     return dict2(data)
 
 
+'''
+from celery import Celery
 def make_celery(app):
   class CELERY_CONFIG(object):
     CELERY_BACKEND='sqlalchemy'
@@ -46,6 +46,7 @@ def make_celery(app):
         return TaskBase.__call__(self, *args, **kwargs)
   celery.Task = ContextTask
   return celery
+'''
 
 def split_list(iterable, size):
   "Yield successive size-sized chunks from iterable."
