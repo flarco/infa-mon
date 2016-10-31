@@ -61,6 +61,7 @@ sql_template = dict(
   list_target_fields=None, # get list of fields for a target
   list_folder=None, # get list of folders
   list_connections=None, # get list of connections
+  list_workflow_details=None, # get list of workflow_details
 )
 
 sql_oracle = dict2(
@@ -88,6 +89,11 @@ log_session_run_full = (
     end='END_TIME',
     duration='DURATION_MIN',
     error='RUN_ERR_MSG',
+    src_success_rows='SRC_SUCCESS_ROWS',
+    src_failed_rows='SRC_FAILED_ROWS',
+    targ_success_rows='TARG_SUCCESS_ROWS',
+    targ_failed_rows='TARG_FAILED_ROWS',
+    total_trans_errs='TOTAL_TRANS_ERRS',
   ),
 '''
 SELECT * FROM (
@@ -106,21 +112,29 @@ SELECT * FROM (
     END as DURATION_MIN,
     O.RUN_ERR_CODE,
     O.RUN_ERR_MSG,
+    L.SRC_SUCCESS_ROWS,
+    L.SRC_FAILED_ROWS,
+    L.TARG_SUCCESS_ROWS,
+    L.TARG_FAILED_ROWS,
+    L.TOTAL_TRANS_ERRS,
     O.SERVER_NAME
   FROM
     "INF_RP"."OPB_TASK_INST_RUN" O,
     "INF_RP"."REP_WORKFLOWS" W,
     "INF_RP"."OPB_SUBJECT" F,
     "INF_RP"."OPB_SESSION" S,
-    "INF_RP"."OPB_MAPPING" M
+    "INF_RP"."OPB_MAPPING" M,
+    "INF_RP"."OPB_SESS_TASK_LOG" L
   WHERE 1=1
     AND F.SUBJ_ID = O.SUBJECT_ID
     AND S.SESSION_ID = O.TASK_ID
     AND M.MAPPING_ID = S.MAPPING_ID
     AND W.WORKFLOW_ID = O.WORKFLOW_ID
+    AND O.WORKFLOW_RUN_ID = L.WORKFLOW_RUN_ID
+    AND O.INSTANCE_ID = L.INSTANCE_ID
     AND TASK_TYPE <> 62
-    AND WORKFLOW_RUN_ID <> 2053353892 -- some weird future-dated entry
-  ORDER BY WORKFLOW_RUN_ID desc
+    AND O.WORKFLOW_RUN_ID <> 2053353892 -- some weird future-dated entry
+  ORDER BY O.WORKFLOW_RUN_ID desc
 ) T
 WHERE ROWNUM <= :limit
 '''),
@@ -137,6 +151,11 @@ log_session_run_recent = (
     end='END_TIME',
     duration='DURATION_MIN',
     error='RUN_ERR_MSG',
+    src_success_rows='SRC_SUCCESS_ROWS',
+    src_failed_rows='SRC_FAILED_ROWS',
+    targ_success_rows='TARG_SUCCESS_ROWS',
+    targ_failed_rows='TARG_FAILED_ROWS',
+    total_trans_errs='TOTAL_TRANS_ERRS',
   ),
 '''
 SELECT
@@ -154,22 +173,30 @@ SELECT
     END as DURATION_MIN,
   O.RUN_ERR_CODE,
   O.RUN_ERR_MSG,
+  L.SRC_SUCCESS_ROWS,
+  L.SRC_FAILED_ROWS,
+  L.TARG_SUCCESS_ROWS,
+  L.TARG_FAILED_ROWS,
+  L.TOTAL_TRANS_ERRS,
   O.SERVER_NAME
 FROM
   "INF_RP"."OPB_TASK_INST_RUN" O,
   "INF_RP"."REP_WORKFLOWS" W,
   "INF_RP"."OPB_SUBJECT" F,
   "INF_RP"."OPB_SESSION" S,
-  "INF_RP"."OPB_MAPPING" M
+  "INF_RP"."OPB_MAPPING" M,
+  "INF_RP"."OPB_SESS_TASK_LOG" L
 WHERE 1=1
   AND F.SUBJ_ID = O.SUBJECT_ID
   AND S.SESSION_ID = O.TASK_ID
   AND M.MAPPING_ID = S.MAPPING_ID
   AND W.WORKFLOW_ID = O.WORKFLOW_ID
-  AND WORKFLOW_RUN_ID >= :last_wf_run_id
+  AND O.WORKFLOW_RUN_ID = L.WORKFLOW_RUN_ID
+  AND O.INSTANCE_ID = L.INSTANCE_ID
+  AND O.WORKFLOW_RUN_ID >= :last_wf_run_id
   AND TASK_TYPE <> 62
-  AND WORKFLOW_RUN_ID <> 2053353892 -- some weird future-dated entry
-ORDER BY WORKFLOW_RUN_ID desc
+  AND O.WORKFLOW_RUN_ID <> 2053353892 -- some weird future-dated entry
+ORDER BY O.WORKFLOW_RUN_ID desc
 '''),
 
 log_session_run2 = (

@@ -386,6 +386,15 @@ class Infa_Rep:
       rec = get_rec(row, fields)
       rec['start'] = rec['start'].strftime('%Y-%m-%d %H:%M:%S')
       rec['success'] = 'No' if rec['error'] else 'Yes'
+      row_stats_str = ' S:{}/{} | T:{}/{} | E:{}'.format(
+        rec['src_success_rows'],
+        rec['src_failed_rows'],
+        rec['targ_success_rows'],
+        rec['targ_failed_rows'],
+        rec['total_trans_errs'],
+      )
+      rec['error'] = rec['error'] + ' --> ' + row_stats_str if rec['error'] else row_stats_str
+
       try:
         rec['end'] = rec['end'].strftime('%Y-%m-%d %H:%M:%S')
         self.last_wf_run_id = rec['workflow_run_id'] if not self.last_wf_run_id or rec['workflow_run_id'] > self.last_wf_run_id else self.last_wf_run_id
@@ -400,6 +409,9 @@ class Infa_Rep:
     
     if running_wf_run_id:
       self.last_wf_run_id = running_wf_run_id
+  
+  def get_session_detail(self, combo):
+    self.run_stats_data
 
 class eUI_FolderTreeInfaObjects:
   "A class to abstract objects for the Tree components of easyuiJS."

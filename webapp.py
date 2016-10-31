@@ -1,12 +1,13 @@
 from api import engines
 from infa_classes import (
   Infa_Rep,
-  eUI_FolderTreeInfaObjects
+  eUI_FolderTreeInfaObjects,
+  log,
 )
 
 import datetime, time, threading, atexit
 
-
+import webbrowser
 import gevent
 from gevent.wsgi import WSGIServer
 from gevent.queue import Queue
@@ -15,7 +16,6 @@ from flask import *
 import json
 
 from helpers import (
-  make_celery,
   ServerSentEvent,
   all_threads,
   run_async,
@@ -92,20 +92,23 @@ test_content = '''
         </div>
 '''
 
+# stats for details: S/T Connections, S/T owner.tables, SQL Override, Error message, start, end
 run_stats_detail = '''
 <div class="easyui-layout" data-options="fit:true">
 <p>{error_message}</p>
 </div>
 '''
 
-@application.route('/<object>.html', methods=['GET','POST'])
-def get_content(object):
+@application.route('/<obj>.stat', methods=['GET','POST'])
+def get_content(obj):
   record = request.values.to_dict()
-  content = globals[object]
+  content = globals[obj] if obj in globals else ''
 
-  if object == 'run_stats_detail':
+  if obj == 'get_session_detail':
     combo = record['combo']
-    content = content.format(error_message=Repo[env].run_stats_data[combo].error)
+    env = record['env']
+    data = Repo[env].get_session_detail(combo)
+    content = globals[obj].format(error_message=Repo[env].run_stats_data[combo].error)
   
   return content
 
@@ -239,6 +242,6 @@ if __name__ == '__main__':
   
   application.debug = True
   server = WSGIServer(("", 5000), application)
+  webbrowser.open('http://127.0.0.1:5000/monitor')
   server.serve_forever()
-
   # application.run(debug=True)

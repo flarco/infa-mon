@@ -101,7 +101,7 @@ function createTable(env){
             border:false,
             cache:false,
             // href:'datagrid21_getdetail.php?itemid='+row.itemid,
-            href:'test_content.html?itemid='+row.itemid + '&env='+env,
+            href:'get_session_detail.stat?combo='+row.itemid + '&env='+env,
             onLoad:function(){
                 $('#dg').datagrid('fixDetailRowHeight',index);
             }
@@ -152,9 +152,9 @@ function createTable(env){
         }
       }, {
         field: 'error',
-        title: 'ERROR',
+        title: 'Execution Message',
         width: 250
-      } ]
+      }]
     ]
   });
 
