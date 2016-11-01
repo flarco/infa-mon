@@ -95,20 +95,34 @@ test_content = '''
 # stats for details: S/T Connections, S/T owner.tables, SQL Override, Error message, start, end
 run_stats_detail = '''
 <div class="easyui-layout" data-options="fit:true">
-<p>{error_message}</p>
+<table class='run_stats_detail_table' style='width: 100%;'>
+  <tr>
+    <th>Key</th>
+    <th>Value</th>
+  </tr>
+  {rows}
+</table>
 </div>
 '''
 
 @application.route('/<obj>.stat', methods=['GET','POST'])
 def get_content(obj):
   record = request.values.to_dict()
-  content = globals[obj] if obj in globals else ''
+  content = ''
 
   if obj == 'get_session_detail':
     combo = record['combo']
     env = record['env']
-    data = Repo[env].get_session_detail(combo)
-    content = globals[obj].format(error_message=Repo[env].run_stats_data[combo].error)
+    data = Repo[env].get_stats_details(combo)
+
+    encap_val = lambda tag, val: '<{}>{}</{}>'.format(tag, val,tag)
+    encap_row = lambda vals: encap_val('tr', ''.join([encap_val('td', v) for v in vals]))
+    
+    rows = [encap_row([key, data[key]]) for key in Repo[env].stats_details_key_order]
+    data2 = {key:data[key] for key in data if isinstance(key, tuple)} # tuples as keys (to sort)
+    rows += [encap_row(['{}_{}'.format(key[1],key[0]), data[key]]) for key in sorted(data2)]
+
+    content = run_stats_detail.format(rows='\n'.join(rows))
   
   return content
 

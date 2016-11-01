@@ -1,4 +1,4 @@
-import logging, datetime, os
+import logging, datetime, os, time
 
 logger = logging.getLogger()
 handler = logging.StreamHandler()
@@ -314,6 +314,8 @@ class Folder:
 class Infa_Rep:
   "A general class abstracting the objects in the Informatica repository database."
 
+  stats_details_key_order = 'folder workflow mapping session start end duration error src_success_rows src_failed_rows targ_success_rows targ_failed_rows total_trans_errs workflow_run_id folder_id workflow_id mapping_id session_id'.split()
+    
   def __init__(self, name, engine=None):
     self.db = engine.connect()
     self.name = name
@@ -324,6 +326,7 @@ class Infa_Rep:
     self.last_wf_run_id = None
     self.run_stats_data = OrderedDict()
     self.keep_refreshing = False
+    self.folder_details = dict()
   
   @run_async
   def get_folder_objects(self, folder_name, get_fields=False):
@@ -368,7 +371,7 @@ class Infa_Rep:
       fields, sql = sql_oracle.log_session_run_full
       result = self.db.execute(
         sql,
-        d(limit=500)
+        d(limit=999)
       )
     else:
       log(self.name + " > Getting latest run stats [recent >= {s}].".format(
@@ -382,6 +385,8 @@ class Infa_Rep:
       )
     
     running_wf_run_id = None
+    folder_ids = set()
+
     for row in result:
       rec = get_rec(row, fields)
       rec['start'] = rec['start'].strftime('%Y-%m-%d %H:%M:%S')
@@ -403,15 +408,61 @@ class Infa_Rep:
         rec['success'] = 'Running'
         running_wf_run_id = rec['workflow_run_id'] if not running_wf_run_id or rec['workflow_run_id'] < running_wf_run_id else running_wf_run_id
       rec['duration'] = float(rec['duration'])
+      rec['combo'] = str(rec.workflow_run_id) + '-' + str(rec.session_id)
       
-      combo = str(rec.workflow_run_id) + '-' + str(rec.task_id)
-      self.run_stats_data[combo] = rec
+      self.run_stats_data[rec['combo']] = rec
+      if not rec['folder_id'] in self.folder_details:
+        folder_ids.add(rec['folder_id'])
+        self.folder_details[rec['folder_id']] = 'updating'
+    
+    if len(folder_ids) > 0:
+      self.get_folder_details(list(folder_ids))
     
     if running_wf_run_id:
       self.last_wf_run_id = running_wf_run_id
   
-  def get_session_detail(self, combo):
-    self.run_stats_data
+  @run_async
+  def get_folder_details(self, folder_ids):
+    log(self.name + " > get_folder_details({}).".format(str(folder_ids)))
+    fields, sql = sql_oracle.list_workflow_details
+    sql = sql.format(folder_ids=','.join([str(f) for f in folder_ids]))
+    result = self.db.execute(sql)
+    fields = {k.lower():k for k in result.keys()}
+    data = [get_rec(row, fields) for row in result]
+
+    for folder_id in folder_ids:
+      self.folder_details[folder_id] = []
+    
+    for rec in data:
+      self.folder_details[rec['folder_id']].append(rec)
+    
+    for folder_id in folder_ids:
+      log(self.name + " > done with get_folder_details({}) -> {} rows.".format(folder_id, len(self.folder_details[folder_id])))
+
+  def get_stats_details(self, combo):
+    sess_run_inst = self.run_stats_data[combo]
+    folder_id = sess_run_inst['folder_id']
+    folder_data = self.folder_details[folder_id]
+
+    w_counter = 0
+    while folder_data == 'updating' and w_counter < 20:
+      time.sleep(1)
+      w_counter += 1
+      folder_data = self.folder_details[folder_id]
+    
+    if folder_data == 'updating': return sess_run_inst
+
+    e_i = 0
+    for rec in folder_data:
+      if rec['session_id'] == sess_run_inst['session_id']:
+        e_i += 1
+        for k in ['source_table', 'target_table',
+          'source_conn', 'target_conn']:
+          sess_run_inst[(e_i,k)] = rec[k]
+    
+    self.run_stats_data[combo] = sess_run_inst
+
+    return sess_run_inst
 
 class eUI_FolderTreeInfaObjects:
   "A class to abstract objects for the Tree components of easyuiJS."

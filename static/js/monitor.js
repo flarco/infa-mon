@@ -97,11 +97,11 @@ function createTable(env){
     onExpandRow: function(index,row){
         var ddv = $(this).datagrid('getRowDetail',index).find('div.ddv');
         ddv.panel({
-            height:80,
+            height:500,
             border:false,
             cache:false,
             // href:'datagrid21_getdetail.php?itemid='+row.itemid,
-            href:'get_session_detail.stat?combo='+row.itemid + '&env='+env,
+            href:'get_session_detail.stat?combo='+ row.combo + '&env='+env,
             onLoad:function(){
                 $('#dg').datagrid('fixDetailRowHeight',index);
             }
@@ -154,6 +154,10 @@ function createTable(env){
         field: 'error',
         title: 'Execution Message',
         width: 250
+      }, {
+        field: 'combo',
+        title: 'Combo',
+        width: 2
       }]
     ]
   });

@@ -62,6 +62,7 @@ sql_template = dict(
   list_folder=None, # get list of folders
   list_connections=None, # get list of connections
   list_workflow_details=None, # get list of workflow_details
+  list_mapping_sources=None,
 )
 
 sql_oracle = dict2(
@@ -83,7 +84,6 @@ log_session_run_full = (
     workflow='WORKFLOW_NAME',
     mapping='MAPPING_NAME',
     workflow_run_id='WORKFLOW_RUN_ID',
-    task_id='TASK_ID',
     session='INSTANCE_NAME',
     start='START_TIME',
     end='END_TIME',
@@ -94,6 +94,10 @@ log_session_run_full = (
     targ_success_rows='TARG_SUCCESS_ROWS',
     targ_failed_rows='TARG_FAILED_ROWS',
     total_trans_errs='TOTAL_TRANS_ERRS',
+    folder_id='SUBJECT_ID',
+    workflow_id='WORKFLOW_ID',
+    mapping_id='MAPPING_ID',
+    session_id='SESSION_ID',
   ),
 '''
 SELECT * FROM (
@@ -103,7 +107,10 @@ SELECT * FROM (
     W.WORKFLOW_NAME,
     O.INSTANCE_NAME,
     M.MAPPING_NAME,
-    O.TASK_ID,
+    O.SUBJECT_ID,
+    W.WORKFLOW_ID,
+    M.MAPPING_ID,
+    S.SESSION_ID,
     O.START_TIME,
     O.END_TIME,
     CASE
@@ -145,7 +152,6 @@ log_session_run_recent = (
     workflow='WORKFLOW_NAME',
     mapping='MAPPING_NAME',
     workflow_run_id='WORKFLOW_RUN_ID',
-    task_id='TASK_ID',
     session='INSTANCE_NAME',
     start='START_TIME',
     end='END_TIME',
@@ -156,6 +162,10 @@ log_session_run_recent = (
     targ_success_rows='TARG_SUCCESS_ROWS',
     targ_failed_rows='TARG_FAILED_ROWS',
     total_trans_errs='TOTAL_TRANS_ERRS',
+    folder_id='SUBJECT_ID',
+    workflow_id='WORKFLOW_ID',
+    mapping_id='MAPPING_ID',
+    session_id='SESSION_ID',
   ),
 '''
 SELECT
@@ -164,7 +174,10 @@ SELECT
   W.WORKFLOW_NAME,
   O.INSTANCE_NAME,
   M.MAPPING_NAME,
-  O.TASK_ID,
+  O.SUBJECT_ID,
+  W.WORKFLOW_ID,
+  M.MAPPING_ID,
+  S.SESSION_ID,
   O.START_TIME,
   O.END_TIME,
   CASE
@@ -968,8 +981,9 @@ SUBJECT AS(
   SUBJ_ID
   FROM OPB_SUBJECT
   -- WHERE SUBJ_NAME = :folder_name
-  WHERE SUBJ_ID = :folder_id
+  WHERE SUBJ_ID in ({folder_ids})
 ),
+
 
 SESSIONS AS (
 SELECT
@@ -993,7 +1007,8 @@ SELECT
   OPB_TASK_INST.INSTANCE_ID as SESSION_INST_ID,
   OPB_SESSION.SESSION_ID,
   OPB_MAPPING.MAPPING_ID,
-  OPB_TASK_INST.TASK_ID
+  OPB_TASK_INST.TASK_ID,
+  INF_RP.OPB_SUBJECT.SUBJ_ID as FOLDER_ID
   
 FROM
   INF_RP.OPB_TASK_INST
@@ -1199,7 +1214,8 @@ SELECT
   SESSION_INSTANCE.SESSION_ID,
   SESSION_INSTANCE.MAPPING_ID,
   SRC_.SOURCE_ID,
-  TGT_.TARGET_ID
+  TGT_.TARGET_ID,
+  SESSION_INSTANCE.FOLDER_ID
   
 FROM
   SESSION_INSTANCE
@@ -1212,5 +1228,33 @@ ORDER BY  SESSION_INSTANCE.FOLDER, SESSION_INSTANCE.WORKFLOW_NAME, SESSION_INSTA
 
 '''),
 
+list_mapping_sources=(
+  dict(
+    owner='OWNERNAME',
+    table='SOURCE_NAME',
+  ),
+'''
+ 
+SELECT
+  OPB_DBDS.MAPPING_ID,
+  OPB_DBD.DBDNAM,
+  OPB_SRC.SRC_ID as SOURCE_ID,
+  OPB_SRC.FILE_NAME,
+  OPB_SRC.SOURCE_NAME,
+  OPB_SRC.OWNERNAME
 
+FROM INF_RP.OPB_DBDS
+JOIN INF_RP.OPB_DBD on OPB_DBD.DBDID = OPB_DBDS.DBD_ID
+JOIN INF_RP.OPB_SRC on OPB_DBD.ROOTID = OPB_SRC.SRC_ID
+
+WHERE 1=1
+  AND OPB_DBDS.MAPPING_ID={mapping_id}
+group by
+  OPB_DBDS.MAPPING_ID,
+  OPB_DBD.DBDNAM,
+  OPB_SRC.SRC_ID,
+  OPB_SRC.FILE_NAME,
+  OPB_SRC.SOURCE_NAME,
+  OPB_SRC.OWNERNAME
+'''),
 )
