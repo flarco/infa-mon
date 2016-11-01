@@ -460,8 +460,6 @@ class Infa_Rep:
           'source_conn', 'target_conn']:
           sess_run_inst[(e_i,k)] = rec[k]
     
-    self.run_stats_data[combo] = sess_run_inst
-
     return sess_run_inst
 
 class eUI_FolderTreeInfaObjects:
